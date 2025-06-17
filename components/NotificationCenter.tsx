@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -31,17 +31,39 @@ export default function NotificationCenter({ onOpenChat }: NotificationCenterPro
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [isTableMissing, setIsTableMissing] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const subscriptionRef = useRef<any>(null)
+  const channelRef = useRef<string>("")
 
   useEffect(() => {
     if (user) {
       fetchNotifications()
     }
+
+    // Cleanup subscription when component unmounts or user changes
+    return () => {
+      if (subscriptionRef.current) {
+        console.log("🧹 Cleaning up notification subscription")
+        subscriptionRef.current.unsubscribe()
+        subscriptionRef.current = null
+      }
+    }
   }, [user])
+
+  // Also fetch notifications when dialog opens
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchNotifications()
+    }
+  }, [isOpen, user])
 
   const fetchNotifications = async () => {
     if (!user) return
 
     try {
+      setLoading(true)
+      console.log("📡 Fetching notifications for user:", user.id)
+
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
@@ -50,68 +72,124 @@ export default function NotificationCenter({ onOpenChat }: NotificationCenterPro
         .limit(20)
 
       if (error) {
-        console.error("Error fetching notifications:", error)
+        console.error("❌ Error fetching notifications:", error)
         // Check if the error is due to missing table
         if (error.message.includes('relation "public.notifications" does not exist')) {
           setIsTableMissing(true)
+          return
         }
       } else {
+        console.log("✅ Notifications fetched:", data?.length || 0)
         setNotifications(data || [])
         setUnreadCount(data?.filter((n) => !n.is_read).length || 0)
         setIsTableMissing(false)
 
-        // Subscribe to new notifications only if table exists
-        const subscription = supabase
-          .channel(`notifications:${user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            (payload) => {
-              const newNotification = payload.new as Notification
-              setNotifications((prev) => [newNotification, ...prev])
-              setUnreadCount((prev) => prev + 1)
-            },
-          )
-          .subscribe()
-
-        return () => {
-          subscription.unsubscribe()
-        }
+        // Set up real-time subscription only if we don't have one already
+        setupRealtimeSubscription()
       }
     } catch (error) {
-      console.error("Unexpected error fetching notifications:", error)
+      console.error("💥 Unexpected error fetching notifications:", error)
       setIsTableMissing(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const setupRealtimeSubscription = () => {
+    if (!user) return
+
+    // Create unique channel name
+    const channelName = `notifications:${user.id}:${Date.now()}`
+
+    // Clean up existing subscription if it exists
+    if (subscriptionRef.current && channelRef.current) {
+      console.log("🔄 Cleaning up existing subscription:", channelRef.current)
+      subscriptionRef.current.unsubscribe()
+      subscriptionRef.current = null
+    }
+
+    try {
+      console.log("🔔 Setting up notification subscription:", channelName)
+
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("🆕 New notification received:", payload.new)
+            const newNotification = payload.new as Notification
+            setNotifications((prev) => [newNotification, ...prev])
+            setUnreadCount((prev) => prev + 1)
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("📝 Notification updated:", payload.new)
+            const updatedNotification = payload.new as Notification
+            setNotifications((prev) => prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n)))
+            // Recalculate unread count
+            setNotifications((prev) => {
+              const newUnreadCount = prev.filter((n) => !n.is_read).length
+              setUnreadCount(newUnreadCount)
+              return prev
+            })
+          },
+        )
+        .subscribe((status) => {
+          console.log("📡 Subscription status:", status)
+        })
+
+      subscriptionRef.current = channel
+      channelRef.current = channelName
+    } catch (error) {
+      console.error("❌ Error setting up subscription:", error)
     }
   }
 
   const markAsRead = async (notificationId: string) => {
     if (isTableMissing) return
 
-    const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
+    try {
+      const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
 
-    if (!error) {
-      setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
-      setUnreadCount((prev) => Math.max(0, prev - 1))
+      if (!error) {
+        setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error("❌ Error marking notification as read:", error)
     }
   }
 
   const markAllAsRead = async () => {
     if (!user || isTableMissing) return
 
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false)
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
 
-    if (!error) {
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
-      setUnreadCount(0)
+      if (!error) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+        setUnreadCount(0)
+      }
+    } catch (error) {
+      console.error("❌ Error marking all notifications as read:", error)
     }
   }
 
@@ -121,25 +199,29 @@ export default function NotificationCenter({ onOpenChat }: NotificationCenterPro
     }
 
     if (notification.type === "message" && notification.related_claim_id) {
-      // Get the claim details and user names separately
-      const { data: claimData } = await supabase
-        .from("claims")
-        .select("*")
-        .eq("id", notification.related_claim_id)
-        .single()
-
-      if (claimData) {
-        // Get the other user's name
-        const otherUserId = claimData.claimer_id === user?.id ? claimData.owner_id : claimData.claimer_id
-        const { data: otherUserProfile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", otherUserId)
+      try {
+        // Get the claim details and user names separately
+        const { data: claimData } = await supabase
+          .from("claims")
+          .select("*")
+          .eq("id", notification.related_claim_id)
           .single()
 
-        const otherUserName = otherUserProfile?.full_name || "User"
-        onOpenChat(notification.related_claim_id, otherUserName)
-        setIsOpen(false)
+        if (claimData) {
+          // Get the other user's name
+          const otherUserId = claimData.claimer_id === user?.id ? claimData.owner_id : claimData.claimer_id
+          const { data: otherUserProfile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", otherUserId)
+            .single()
+
+          const otherUserName = otherUserProfile?.full_name || "User"
+          onOpenChat(notification.related_claim_id, otherUserName)
+          setIsOpen(false)
+        }
+      } catch (error) {
+        console.error("❌ Error handling notification click:", error)
       }
     }
   }
@@ -217,41 +299,49 @@ export default function NotificationCenter({ onOpenChat }: NotificationCenterPro
         </DialogHeader>
 
         <ScrollArea className="flex-1">
-          <div className="space-y-2">
-            {notifications.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No notifications yet</p>
-                <p className="text-xs mt-1">You'll get notified when someone requests your items or sends messages</p>
-              </div>
-            ) : (
-              notifications.map((notification) => (
-                <Card
-                  key={notification.id}
-                  className={`cursor-pointer transition-colors hover:bg-gray-50 ${
-                    !notification.is_read ? "border-green-200 bg-green-50" : ""
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">{getNotificationIcon(notification.type)}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-sm">{notification.title}</h4>
-                          {!notification.is_read && <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />}
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="text-sm">Loading notifications...</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {notifications.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No notifications yet</p>
+                  <p className="text-xs mt-1">You'll get notified when someone requests your items or sends messages</p>
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <Card
+                    key={notification.id}
+                    className={`cursor-pointer transition-colors hover:bg-gray-50 ${
+                      !notification.is_read ? "border-green-200 bg-green-50" : ""
+                    }`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-1">{getNotificationIcon(notification.type)}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm">{notification.title}</h4>
+                            {!notification.is_read && (
+                              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-2">{notification.message}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-2">{notification.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
         </ScrollArea>
       </DialogContent>
     </Dialog>

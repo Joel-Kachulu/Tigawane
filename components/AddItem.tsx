@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -20,6 +19,7 @@ interface AddItemProps {
 export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -33,15 +33,39 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+
     if (!user) {
-      alert("Please sign in to share items")
+      setError("Please sign in to share items")
       return
     }
 
-    console.log("Starting item submission...")
-    console.log("Form data:", formData)
-    console.log("User ID:", user.id)
-    console.log("Item type:", itemType)
+    // Validate required fields
+    if (!formData.title.trim()) {
+      setError("Please enter a title")
+      return
+    }
+    if (!formData.category) {
+      setError("Please select a category")
+      return
+    }
+    if (!formData.quantity.trim()) {
+      setError("Please enter quantity")
+      return
+    }
+    if (!formData.pickup_location.trim()) {
+      setError("Please enter pickup location")
+      return
+    }
+    if (itemType === "non-food" && !formData.condition) {
+      setError("Please select condition")
+      return
+    }
+
+    console.log("🚀 Starting item submission...")
+    console.log("📝 Form data:", formData)
+    console.log("👤 User ID:", user.id)
+    console.log("📦 Item type:", itemType)
 
     setLoading(true)
 
@@ -50,50 +74,56 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
       // Upload image if provided
       if (imageFile) {
-        console.log("Uploading image...")
+        console.log("📸 Uploading image...")
         const fileExt = imageFile.name.split(".").pop()
         const fileName = `${user.id}/${Date.now()}.${fileExt}`
 
-        const { error: uploadError } = await supabase.storage.from("item-images").upload(fileName, imageFile)
+        try {
+          const { error: uploadError } = await supabase.storage.from("item-images").upload(fileName, imageFile)
 
-        if (uploadError) {
-          console.error("Upload error:", uploadError)
-          // Continue without image if upload fails
-          alert("Image upload failed, but item will be shared without photo")
-        } else {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("item-images").getPublicUrl(fileName)
-          imageUrl = publicUrl
-          console.log("Image uploaded successfully:", imageUrl)
+          if (uploadError) {
+            console.warn("⚠️ Image upload failed:", uploadError)
+            // Continue without image
+          } else {
+            const {
+              data: { publicUrl },
+            } = supabase.storage.from("item-images").getPublicUrl(fileName)
+            imageUrl = publicUrl
+            console.log("✅ Image uploaded successfully:", imageUrl)
+          }
+        } catch (uploadErr) {
+          console.warn("⚠️ Image upload error:", uploadErr)
+          // Continue without image
         }
       }
 
-      // Prepare item data
+      // Prepare item data with ALL required fields
       const itemData = {
-        title: formData.title,
-        description: formData.description || null,
+        title: formData.title.trim(),
+        description: formData.description.trim() || null,
         category: formData.category,
-        item_type: itemType,
-        quantity: formData.quantity,
-        condition: itemType === "non-food" ? formData.condition || null : null,
-        expiry_date: itemType === "food" && formData.expiry_date ? formData.expiry_date : null,
-        pickup_location: formData.pickup_location,
-        image_url: imageUrl,
+        item_type: itemType, // ✅ This was missing!
+        quantity: formData.quantity.trim(),
+        pickup_location: formData.pickup_location.trim(),
         user_id: user.id,
+        status: "available", // ✅ Add default status
+        // Optional fields
+        image_url: imageUrl,
+        expiry_date: itemType === "food" && formData.expiry_date ? formData.expiry_date : null,
+        condition: itemType === "non-food" && formData.condition ? formData.condition : null,
       }
 
-      console.log("Inserting item data:", itemData)
+      console.log("💾 Inserting item data:", itemData)
 
-      // Insert item
-      const { data, error } = await supabase.from("items").insert(itemData).select()
+      // Insert into items table
+      const { data, error: insertError } = await supabase.from("items").insert(itemData).select()
 
-      if (error) {
-        console.error("Database error:", error)
-        throw error
+      if (insertError) {
+        console.error("❌ Database error:", insertError)
+        throw insertError
       }
 
-      console.log("Item inserted successfully:", data)
+      console.log("🎉 Item inserted successfully:", data)
 
       // Reset form
       setFormData({
@@ -114,10 +144,11 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
       }
 
       onItemAdded()
-      alert(`${itemType === "food" ? "Food" : "Item"} shared successfully!`)
+      setError(null)
+      alert(`✅ ${itemType === "food" ? "Food" : "Item"} shared successfully!`)
     } catch (error: any) {
-      console.error("Error adding item:", error)
-      alert(`Error sharing item: ${error.message}`)
+      console.error("💥 Error adding item:", error)
+      setError(`Failed to share item: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -132,7 +163,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
   }
 
   const categories = getCategories()
-  const conditions = ["new", "excellent", "good", "fair", "needs-repair, old"]
+  const conditions = ["new", "excellent", "good", "fair", "needs-repair", "old"]
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -143,6 +174,12 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="title">{itemType === "food" ? "Food" : "Item"} Title *</Label>
@@ -154,6 +191,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 itemType === "food" ? "e.g., Fresh tomatoes, Cooked rice" : "e.g., Men's shoes, Baby clothes"
               }
               required
+              disabled={loading}
             />
           </div>
 
@@ -163,6 +201,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               value={formData.category}
               onValueChange={(value) => setFormData({ ...formData, category: value })}
               required
+              disabled={loading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -185,6 +224,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
               placeholder={itemType === "food" ? "e.g., 2 kg, 5 pieces, 1 bowl" : "e.g., 1 pair, 3 pieces, 1 set"}
               required
+              disabled={loading}
             />
           </div>
 
@@ -195,6 +235,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 value={formData.condition}
                 onValueChange={(value) => setFormData({ ...formData, condition: value })}
                 required
+                disabled={loading}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select condition" />
@@ -218,6 +259,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               onChange={(e) => setFormData({ ...formData, pickup_location: e.target.value })}
               placeholder="e.g., Area 25, Lilongwe"
               required
+              disabled={loading}
             />
           </div>
 
@@ -229,6 +271,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 type="date"
                 value={formData.expiry_date}
                 onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                disabled={loading}
               />
             </div>
           )}
@@ -243,6 +286,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 itemType === "food" ? "Additional details about the food..." : "Additional details about the item..."
               }
               rows={3}
+              disabled={loading}
             />
           </div>
 
@@ -253,11 +297,23 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               type="file"
               accept="image/*"
               onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              disabled={loading}
             />
           </div>
 
-          <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={loading}>
-            {loading ? "Sharing..." : `Share ${itemType === "food" ? "Food" : "Item"}`}
+          <Button
+            type="submit"
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Sharing...
+              </div>
+            ) : (
+              `Share ${itemType === "food" ? "Food" : "Item"}`
+            )}
           </Button>
         </form>
       </CardContent>

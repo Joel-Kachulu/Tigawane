@@ -13,7 +13,8 @@ import NotificationCenter from "@/components/NotificationCenter"
 import CollaborationCenter from "@/components/CollaborationCenter"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LogOut, Plus, Home, Users } from "lucide-react"
+import { LogOut, Plus, Home, Users, User } from "lucide-react"
+import MyItemsManager from "@/components/MyItemsManager"
 
 interface Item {
   id: string
@@ -44,6 +45,7 @@ function AppContent() {
   const [collaborationChatId, setCollaborationChatId] = useState<string | null>(null)
   const [collaborationChatTitle, setCollaborationChatTitle] = useState("")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [myItemsRefreshTrigger, setMyItemsRefreshTrigger] = useState(0)
 
   const handleGetStarted = () => {
     setShowLanding(false)
@@ -70,6 +72,7 @@ function AppContent() {
 
   const handleItemAdded = () => {
     setRefreshTrigger((prev) => prev + 1)
+    setMyItemsRefreshTrigger((prev) => prev + 1)
   }
 
   const handleItemClaimed = () => {
@@ -86,6 +89,11 @@ function AppContent() {
     setCollaborationChatId(collaborationId)
     setCollaborationChatTitle(title)
     setShowCollaborationChat(true)
+  }
+
+  const handleMyItemUpdated = () => {
+    setRefreshTrigger((prev) => prev + 1)
+    setMyItemsRefreshTrigger((prev) => prev + 1)
   }
 
   if (loading) {
@@ -133,7 +141,7 @@ function AppContent() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="browse-food" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto mb-8">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl mx-auto mb-8">
             <TabsTrigger value="browse-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
               <span className="text-lg">🍚</span>
               <span>Food</span>
@@ -153,6 +161,10 @@ function AppContent() {
             <TabsTrigger value="collaborate" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
               <Users className="h-4 w-4" />
               <span>Collaborate</span>
+            </TabsTrigger>
+            <TabsTrigger value="my-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+              <User className="h-4 w-4" />
+              <span>My Items</span>
             </TabsTrigger>
           </TabsList>
 
@@ -198,6 +210,10 @@ function AppContent() {
 
           <TabsContent value="collaborate">
             <CollaborationCenter onOpenCollaborationChat={handleOpenCollaborationChat} />
+          </TabsContent>
+
+          <TabsContent value="my-items">
+            <MyItemsManager key={`my-items-${myItemsRefreshTrigger}`} onItemUpdated={handleMyItemUpdated} />
           </TabsContent>
         </Tabs>
       </main>
