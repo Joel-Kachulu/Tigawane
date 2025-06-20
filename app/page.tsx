@@ -55,15 +55,27 @@ function AppContent() {
     setShowLanding(true)
   }
 
-  const handleSignOut = async () => {
-    try {
-      console.log("Sign out button clicked")
-      await signOut()
-      setShowLanding(true)
-    } catch (error) {
-      console.error("Error in handleSignOut:", error)
-    }
+const handleSignOut = async () => {
+  try {
+    console.log("Sign out button clicked")
+    await signOut()
+    // Reset all state
+    setShowLanding(true)
+    setSelectedItem(null)
+    setShowClaimModal(false)
+    setShowChatModal(false)
+    setShowCollaborationChat(false)
+    setChatClaimId(null)
+    setChatOtherUser("")
+    setCollaborationChatId(null)
+    setCollaborationChatTitle("")
+    setRefreshTrigger(0)
+    setMyItemsRefreshTrigger(0)
+  } catch (error) {
+    console.error("Error in handleSignOut:", error)
   }
+}
+
 
   const handleClaimItem = (item: Item) => {
     setSelectedItem(item)
