@@ -18,7 +18,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <div className="text-center space-y-8">
             <div className="flex justify-center items-center gap-3 mb-6">
               <span className="text-6xl">🤝</span>
-              <h1 className="text-5xl md:text-7xl font-bold">Tigawane</h1>
+              <h1 className="text-5xl md:text-7xl font-bold">Tigawaneee</h1>
             </div>
 
             <h2 className="text-2xl md:text-4xl font-bold max-w-4xl mx-auto leading-tight">
