@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +18,8 @@ export default function Auth() {
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [location, setLocation] = useState("")
+
+  const router = useRouter()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,9 +40,15 @@ export default function Auth() {
 
       if (error) {
         throw error
-      } else {
-        alert("Check your email for the confirmation link!")
       }
+
+      // Refresh session (important in some cases)
+      const { data: sessionData } = await supabase.auth.getSession()
+
+      alert("Check your email for the confirmation link!")
+
+      // Redirect after signup to avoid stuck page
+      router.push("/")
     } catch (error: any) {
       console.error("Sign up error:", error)
       alert(error.message || "Error creating account. Please try again.")
@@ -61,6 +70,12 @@ export default function Auth() {
       if (error) {
         throw error
       }
+
+      // Refresh session explicitly to avoid stale state
+      const { data: sessionData } = await supabase.auth.getSession()
+
+      // Redirect to home/dashboard after login
+      router.push("/")
     } catch (error: any) {
       console.error("Sign in error:", error)
       alert(error.message || "Error signing in. Please check your credentials.")
