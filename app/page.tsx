@@ -47,35 +47,28 @@ function AppContent() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [myItemsRefreshTrigger, setMyItemsRefreshTrigger] = useState(0)
 
-  const handleGetStarted = () => {
-    setShowLanding(false)
-  }
+  const handleGetStarted = () => setShowLanding(false)
+  const handleGoHome = () => setShowLanding(true)
 
-  const handleGoHome = () => {
-    setShowLanding(true)
+  const handleSignOut = async () => {
+    try {
+      console.log("Sign out button clicked")
+      await signOut()
+      setShowLanding(true)
+      setSelectedItem(null)
+      setShowClaimModal(false)
+      setShowChatModal(false)
+      setShowCollaborationChat(false)
+      setChatClaimId(null)
+      setChatOtherUser("")
+      setCollaborationChatId(null)
+      setCollaborationChatTitle("")
+      setRefreshTrigger(0)
+      setMyItemsRefreshTrigger(0)
+    } catch (error) {
+      console.error("Error in handleSignOut:", error)
+    }
   }
-
-const handleSignOut = async () => {
-  try {
-    console.log("Sign out button clicked")
-    await signOut()
-    // Reset all state
-    setShowLanding(true)
-    setSelectedItem(null)
-    setShowClaimModal(false)
-    setShowChatModal(false)
-    setShowCollaborationChat(false)
-    setChatClaimId(null)
-    setChatOtherUser("")
-    setCollaborationChatId(null)
-    setCollaborationChatTitle("")
-    setRefreshTrigger(0)
-    setMyItemsRefreshTrigger(0)
-  } catch (error) {
-    console.error("Error in handleSignOut:", error)
-  }
-}
-
 
   const handleClaimItem = (item: Item) => {
     setSelectedItem(item)
@@ -153,28 +146,28 @@ const handleSignOut = async () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="browse-food" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 max-w-4xl mx-auto mb-8">
-            <TabsTrigger value="browse-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+          <TabsList className="w-full overflow-x-auto flex sm:grid sm:grid-cols-6 max-w-4xl mx-auto mb-8 gap-2 sm:gap-0">
+            <TabsTrigger value="browse-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
               <span className="text-lg">🍚</span>
               <span>Food</span>
             </TabsTrigger>
-            <TabsTrigger value="browse-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+            <TabsTrigger value="browse-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
               <span className="text-lg">👕</span>
               <span>Items</span>
             </TabsTrigger>
-            <TabsTrigger value="share-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+            <TabsTrigger value="share-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
               <Plus className="h-4 w-4" />
               <span>Share Food</span>
             </TabsTrigger>
-            <TabsTrigger value="share-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+            <TabsTrigger value="share-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
               <Plus className="h-4 w-4" />
               <span>Share Items</span>
             </TabsTrigger>
-            <TabsTrigger value="collaborate" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+            <TabsTrigger value="collaborate" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
               <Users className="h-4 w-4" />
               <span>Collaborate</span>
             </TabsTrigger>
-            <TabsTrigger value="my-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2">
+            <TabsTrigger value="my-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
               <User className="h-4 w-4" />
               <span>My Items</span>
             </TabsTrigger>
