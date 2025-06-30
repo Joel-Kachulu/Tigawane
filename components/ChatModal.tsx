@@ -1,20 +1,26 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Loader2 } from "lucide-react"
+import { Send, Loader2, X } from "lucide-react"
 
 interface Message {
   id: string
   message: string
   sender_id: string
   created_at: string
+  claim_id: string
   sender_name?: string
 }
 
@@ -32,19 +38,20 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout>()
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const [requestMessage, setRequestMessage] = useState<string | null>(null)
+  const [claimLoading, setClaimLoading] = useState(false)
+  const [claimInfo, setClaimInfo] = useState<{ owner_id: string; claimer_id: string; item_id: string; status: string } | null>(null)
+  const [completing, setCompleting] = useState(false)
 
-  // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
-  // Optimized message fetching using database function
   const fetchMessages = useCallback(async () => {
     if (!claimId) return
-
     setLoading(true)
     try {
       const { data, error } = await supabase.rpc("get_messages_with_sender_names", {
@@ -56,7 +63,6 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
         console.error("Error fetching messages:", error)
       } else {
         setMessages(data || [])
-        // Scroll to bottom after messages load
         setTimeout(scrollToBottom, 100)
       }
     } catch (error) {
@@ -66,27 +72,26 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
     }
   }, [claimId, scrollToBottom])
 
-  // Real-time subscription setup
+  // Real-time listener without broken filters
   useEffect(() => {
     if (!claimId || !isOpen) return
 
     fetchMessages()
 
-    // Set up real-time subscription
     const channel = supabase
-      .channel(`messages:${claimId}`)
+      .channel('realtime:messages')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `claim_id=eq.${claimId}`,
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
         },
         async (payload) => {
           const newMsg = payload.new as Message
 
-          // Fetch sender name for the new message
+          if (newMsg.claim_id !== claimId) return
+
           const { data: profile } = await supabase
             .from("profiles")
             .select("full_name")
@@ -98,70 +103,62 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
             sender_name: profile?.full_name || "Anonymous",
           }
 
-          setMessages((prev) => {
-            // Prevent duplicate messages
-            if (prev.some((msg) => msg.id === messageWithName.id)) {
-              return prev
-            }
+          setMessages(prev => {
+            if (prev.some(msg => msg.id === newMsg.id)) return prev
             return [...prev, messageWithName]
           })
 
-          // Auto-scroll to new message
           setTimeout(scrollToBottom, 100)
-        },
+        }
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: `claim_id=eq.${claimId}`,
-        },
-        async (payload) => {
-          const updatedMsg = payload.new as Message
-
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", updatedMsg.sender_id)
-            .single()
-
-          const messageWithName = {
-            ...updatedMsg,
-            sender_name: profile?.full_name || "Anonymous",
-          }
-
-          setMessages((prev) => prev.map((msg) => (msg.id === messageWithName.id ? messageWithName : msg)))
-        },
-      )
-      .subscribe((status) => {
-        console.log("Chat subscription status:", status)
-      })
+      .subscribe()
 
     return () => {
       channel.unsubscribe()
     }
   }, [claimId, isOpen, fetchMessages, scrollToBottom])
 
-  // Typing indicator
+  // Fetch the claim's request message
+  useEffect(() => {
+    if (!claimId || !isOpen) return
+    setClaimLoading(true)
+    const fetchClaimMessage = async () => {
+      const { data, error } = await supabase
+        .from("claims")
+        .select("message")
+        .eq("id", claimId)
+        .single()
+      if (!error && data) setRequestMessage(data.message)
+      else setRequestMessage(null)
+      setClaimLoading(false)
+    }
+    fetchClaimMessage()
+  }, [claimId, isOpen])
+
+  // Fetch claim info for completion logic
+  useEffect(() => {
+    if (!claimId || !isOpen) return
+    const fetchClaimInfo = async () => {
+      const { data, error } = await supabase
+        .from("claims")
+        .select("owner_id, claimer_id, item_id, status")
+        .eq("id", claimId)
+        .single()
+      if (!error && data) setClaimInfo(data)
+      else setClaimInfo(null)
+    }
+    fetchClaimInfo()
+  }, [claimId, isOpen])
+
   const handleTyping = useCallback(() => {
-    if (!isTyping) {
-      setIsTyping(true)
-    }
+    if (!isTyping) setIsTyping(true)
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
 
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current)
-    }
-
-    // Set new timeout
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false)
     }, 1000)
   }, [isTyping])
 
-  // Optimized message sending
   const sendMessage = useCallback(async () => {
     if (!user || !claimId || !newMessage.trim() || sending) return
 
@@ -176,18 +173,40 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
         message: messageText,
       })
 
-      if (error) {
-        throw error
+      if (error) throw error
+
+      // Fetch claim to get the other user
+      const { data: claim, error: claimError } = await supabase
+        .from("claims")
+        .select("claimer_id, owner_id")
+        .eq("id", claimId)
+        .single()
+      if (!claimError && claim) {
+        const recipientId = claim.claimer_id === user.id ? claim.owner_id : claim.claimer_id
+        if (recipientId !== user.id) {
+          // Fetch sender's name
+          const { data: senderProfile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .single()
+          const senderName = senderProfile?.full_name || "User"
+          // Insert notification for the other user
+          await supabase.from("notifications").insert({
+            user_id: recipientId,
+            type: "message",
+            title: `New message from ${senderName}`,
+            message: messageText.length > 80 ? messageText.slice(0, 80) + "..." : messageText,
+            related_claim_id: claimId,
+            is_read: false,
+          })
+        }
       }
 
-      // Clear typing indicator
       setIsTyping(false)
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
-      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     } catch (error: any) {
       console.error("Error sending message:", error)
-      // Restore message on error
       setNewMessage(messageText)
       alert(`Error sending message: ${error.message}`)
     } finally {
@@ -202,7 +221,7 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
         sendMessage()
       }
     },
-    [sendMessage],
+    [sendMessage]
   )
 
   const handleInputChange = useCallback(
@@ -210,39 +229,79 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
       setNewMessage(e.target.value)
       handleTyping()
     },
-    [handleTyping],
+    [handleTyping]
   )
 
-  // Format message time
   const formatTime = useCallback((dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    } else {
-      return date.toLocaleDateString([], { month: "short", day: "numeric" })
-    }
+    return diffInHours < 24
+      ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : date.toLocaleDateString([], { month: "short", day: "numeric" })
   }, [])
+
+  const handleComplete = async () => {
+    if (!claimInfo || !user || claimInfo.owner_id !== user.id) return
+    setCompleting(true)
+    try {
+      // Update claim status
+      await supabase.from("claims").update({ status: "completed" }).eq("id", claimId)
+      // Update item status
+      await supabase.from("items").update({ status: "completed" }).eq("id", claimInfo.item_id)
+      // Notify claimer
+      await supabase.from("notifications").insert({
+        user_id: claimInfo.claimer_id,
+        type: "status_update",
+        title: "Sharing completed",
+        message: "The owner has marked this sharing as complete.",
+        related_claim_id: claimId,
+        is_read: false,
+      })
+      // Refetch claim info to update UI
+      setClaimInfo({ ...claimInfo, status: "completed" })
+      alert("Marked as complete. This item will be removed from active listings.")
+    } catch (err) {
+      alert("Error marking as complete.")
+    } finally {
+      setCompleting(false)
+    }
+  }
 
   if (!claimId) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md h-[600px] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Chat with {otherUserName}</DialogTitle>
-          <DialogDescription>
-            Coordinate pickup details
-            {isTyping && <span className="text-green-600 ml-2">• typing...</span>}
-          </DialogDescription>
+      <DialogContent className="max-w-md h-[600px] flex flex-col bg-white shadow-xl rounded-xl border-2 border-green-100">
+        <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b pb-2 mb-2">
+          <div className="flex flex-col flex-1">
+            <DialogTitle className="text-lg font-bold">Chat with {otherUserName}</DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Coordinate pickup details
+              {isTyping && <span className="text-green-600 ml-2">• typing...</span>}
+            </DialogDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close chat">
+            <X className="h-5 w-5" />
+          </Button>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 p-4 border rounded" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 p-4 border rounded bg-gray-50" ref={scrollAreaRef}>
+          {claimLoading ? (
+            <div className="flex justify-center items-center h-16">
+              <Loader2 className="h-5 w-5 animate-spin text-green-600" />
+            </div>
+          ) : requestMessage ? (
+            <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-900 text-sm border border-green-200">
+              <span className="font-semibold">Request message:</span>
+              <br />
+              {requestMessage}
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex justify-center items-center h-32">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
             </div>
           ) : (
             <div className="space-y-4">
@@ -259,15 +318,15 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
                   return (
                     <div key={message.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                       <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
-                          isOwn ? "bg-green-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                        }`}
+                        className={`max-w-[80%] p-3 rounded-2xl shadow-sm transition-all duration-200 text-sm break-words
+                          ${isOwn ? "bg-green-600 text-white rounded-br-md" : "bg-white border border-gray-200 text-gray-900 rounded-bl-md"}
+                        `}
                       >
                         {!isOwn && showSender && (
                           <p className="text-xs font-medium mb-1 opacity-70">{message.sender_name}</p>
                         )}
-                        <p className="text-sm whitespace-pre-wrap">{message.message}</p>
-                        <p className="text-xs opacity-70 mt-1">{formatTime(message.created_at)}</p>
+                        <p className="whitespace-pre-wrap">{message.message}</p>
+                        <p className="text-xs opacity-60 mt-1 text-right">{formatTime(message.created_at)}</p>
                       </div>
                     </div>
                   )
@@ -278,20 +337,36 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
           )}
         </ScrollArea>
 
-        <div className="flex gap-2">
+        <form
+          className="flex gap-2 mt-2"
+          onSubmit={e => {
+            e.preventDefault();
+            sendMessage();
+          }}
+        >
           <Input
             value={newMessage}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
             disabled={sending}
-            className="flex-1"
+            className="flex-1 focus:ring-2 focus:ring-green-400 focus:border-green-400 rounded-full px-4 py-2 text-base"
             maxLength={500}
+            autoFocus
           />
-          <Button onClick={sendMessage} disabled={sending || !newMessage.trim()} size="icon" className="shrink-0">
+          <Button type="submit" onClick={sendMessage} disabled={sending || !newMessage.trim()} size="icon" className="shrink-0 bg-green-600 hover:bg-green-700">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
-        </div>
+        </form>
+        {claimInfo && claimInfo.owner_id === user?.id && claimInfo.status !== "completed" && (
+          <Button
+            onClick={handleComplete}
+            disabled={completing}
+            className="mt-2 bg-blue-600 hover:bg-blue-700 w-full"
+          >
+            {completing ? "Completing..." : "Mark as Complete"}
+          </Button>
+        )}
       </DialogContent>
     </Dialog>
   )

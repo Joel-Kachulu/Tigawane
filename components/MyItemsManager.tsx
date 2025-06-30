@@ -39,6 +39,26 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [filter, setFilter] = useState("all")
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [requestCounts, setRequestCounts] = useState<{ [itemId: string]: number }>({})
+
+  // Fetch request counts for each item
+  const fetchRequestCounts = useCallback(async (itemIds: string[]) => {
+    if (itemIds.length === 0) return setRequestCounts({})
+    const { data, error } = await supabase
+      .from("claims")
+      .select("item_id, status")
+      .in("item_id", itemIds)
+      .in("status", ["pending", "requested"])
+    if (error) {
+      setRequestCounts({})
+      return
+    }
+    const counts: { [itemId: string]: number } = {}
+    data.forEach((claim: { item_id: string }) => {
+      counts[claim.item_id] = (counts[claim.item_id] || 0) + 1
+    })
+    setRequestCounts(counts)
+  }, [])
 
   // Optimized fetch using database function
   const fetchMyItems = useCallback(async () => {
@@ -62,13 +82,19 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
 
       console.log("Successfully fetched user items:", itemData?.length || 0)
       setItems(itemData || [])
+      // Fetch request counts for these items
+      if (itemData && itemData.length > 0) {
+        fetchRequestCounts(itemData.map((item: Item) => item.id))
+      } else {
+        setRequestCounts({})
+      }
     } catch (error: any) {
       console.error("Unexpected error fetching user items:", error)
       setError(`Unexpected error: ${error.message}`)
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, fetchRequestCounts])
 
   useEffect(() => {
     if (user) {
@@ -134,18 +160,30 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
 
   // Memoize filtered items
   const filteredItems = useMemo(() => {
+    if (filter === "requested") {
+      return items.filter(
+        (item) =>
+          item.status === "requested" ||
+          (item.status === "available" && requestCounts[item.id] > 0)
+      )
+    }
     return filter === "all" ? items : items.filter((item) => item.status === filter)
-  }, [items, filter])
+  }, [items, filter, requestCounts])
 
   // Memoize stats
   const stats = useMemo(() => {
+    const requestedCount = items.filter(
+      (item) =>
+        item.status === "requested" ||
+        (item.status === "available" && requestCounts[item.id] > 0)
+    ).length;
     return {
       total: items.length,
-      available: items.filter((i) => i.status === "available").length,
-      requested: items.filter((i) => i.status === "requested").length,
+      available: items.filter((i) => i.status === "available" && (!requestCounts[i.id] || requestCounts[i.id] === 0)).length,
+      requested: requestedCount,
       completed: items.filter((i) => i.status === "completed").length,
-    }
-  }, [items])
+    };
+  }, [items, requestCounts])
 
   if (loading) {
     return (
@@ -235,7 +273,14 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
               )}
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{item.title}</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {item.title}
+                    {requestCounts[item.id] > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-200 text-yellow-800">
+                        {requestCounts[item.id]} Request{requestCounts[item.id] > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </CardTitle>
                   <div className="flex flex-col gap-1">
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       {item.category}

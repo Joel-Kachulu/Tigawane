@@ -13,8 +13,9 @@ import NotificationCenter from "@/components/NotificationCenter"
 import CollaborationCenter from "@/components/CollaborationCenter"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LogOut, Plus, Home, Users, User } from "lucide-react"
+import { LogOut, Plus, Home, Users, User, Menu } from "lucide-react"
 import MyItemsManager from "@/components/MyItemsManager"
+import Link from "next/link"
 
 interface Item {
   id: string
@@ -46,6 +47,8 @@ function AppContent() {
   const [collaborationChatTitle, setCollaborationChatTitle] = useState("")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [myItemsRefreshTrigger, setMyItemsRefreshTrigger] = useState(0)
+  const [currentTab, setCurrentTab] = useState("browse-food")
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleGetStarted = () => setShowLanding(false)
   const handleGoHome = () => setShowLanding(true)
@@ -101,6 +104,10 @@ function AppContent() {
     setMyItemsRefreshTrigger((prev) => prev + 1)
   }
 
+  const handleNavigateToMyItems = () => {
+    setCurrentTab("my-items")
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -130,11 +137,17 @@ function AppContent() {
               <h1 className="text-xl font-bold text-green-700">Tigawane</h1>
             </div>
             <div className="flex items-center gap-2">
-              <NotificationCenter onOpenChat={handleOpenChat} />
+              <NotificationCenter onOpenChat={handleOpenChat} onNavigateToMyItems={handleNavigateToMyItems} />
               <Button variant="outline" onClick={handleGoHome} className="flex items-center gap-2" size="sm">
                 <Home className="h-4 w-4" />
                 <span className="hidden sm:inline">Home</span>
               </Button>
+              <Link href="/profile">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">Profile</span>
+                </Button>
+              </Link>
               <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2" size="sm">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -145,29 +158,69 @@ function AppContent() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="browse-food" className="w-full">
-          <TabsList className="w-full overflow-x-auto flex sm:grid sm:grid-cols-6 max-w-4xl mx-auto mb-8 gap-2 sm:gap-0">
-            <TabsTrigger value="browse-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
+        <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+          {/* Mobile: Hamburger menu */}
+          <div className="sm:hidden mb-6 flex justify-center">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              aria-label="Open menu"
+              className="rounded-full"
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+            {mobileMenuOpen && (
+              <div className="absolute z-50 mt-2 w-56 bg-white rounded-xl shadow-lg border p-2 flex flex-col gap-2">
+                {[
+                  { value: "browse-food", label: "Food", icon: <span className='text-lg'>🍚</span> },
+                  { value: "browse-items", label: "Items", icon: <span className='text-lg'>👕</span> },
+                  { value: "share-food", label: "Share Food", icon: <Plus className='h-4 w-4' /> },
+                  { value: "share-items", label: "Share Items", icon: <Plus className='h-4 w-4' /> },
+                  { value: "collaborate", label: "Collaborate", icon: <Users className='h-4 w-4' /> },
+                  { value: "my-items", label: "My Items", icon: <User className='h-4 w-4' /> },
+                ].map((tab) => (
+                  <Button
+                    key={tab.value}
+                    variant={currentTab === tab.value ? "default" : "ghost"}
+                    className="flex items-center gap-2 w-full justify-start px-4 py-3 text-base rounded-lg"
+                    onClick={() => {
+                      setCurrentTab(tab.value)
+                      setMobileMenuOpen(false)
+                    }}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Desktop: Tab bar */}
+          <TabsList
+            className="hidden sm:grid sm:grid-cols-6 max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md p-2 gap-2"
+          >
+            <TabsTrigger value="browse-food" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
               <span className="text-lg">🍚</span>
               <span>Food</span>
             </TabsTrigger>
-            <TabsTrigger value="browse-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
+            <TabsTrigger value="browse-items" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
               <span className="text-lg">👕</span>
               <span>Items</span>
             </TabsTrigger>
-            <TabsTrigger value="share-food" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
+            <TabsTrigger value="share-food" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
               <Plus className="h-4 w-4" />
               <span>Share Food</span>
             </TabsTrigger>
-            <TabsTrigger value="share-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
+            <TabsTrigger value="share-items" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
               <Plus className="h-4 w-4" />
               <span>Share Items</span>
             </TabsTrigger>
-            <TabsTrigger value="collaborate" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
+            <TabsTrigger value="collaborate" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
               <Users className="h-4 w-4" />
               <span>Collaborate</span>
             </TabsTrigger>
-            <TabsTrigger value="my-items" className="flex flex-col items-center gap-1 text-xs sm:text-sm p-2 min-w-[80px]">
+            <TabsTrigger value="my-items" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
               <User className="h-4 w-4" />
               <span>My Items</span>
             </TabsTrigger>

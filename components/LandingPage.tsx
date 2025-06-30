@@ -3,69 +3,75 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, MessageCircle, MapPin } from "lucide-react"
+import { useEffect, useState } from "react"
+import SubmitStoryModal from "./SubmitStoryModal"
+import { supabase } from "@/lib/supabase"
 
 interface LandingPageProps {
   onGetStarted: () => void
 }
 
+const dummyStories = [
+  {
+    name: "Mercy",
+    location: "Blantyre",
+    story: "I had leftover vegetables from the market. Posted on Tigawane—they were picked up within an hour!",
+    color: "green"
+  },
+  {
+    name: "Dan",
+    location: "Lilongwe",
+    story: "I gave away my son's shoes. They now help a child walk to school every day.",
+    color: "blue"
+  }
+]
+
 export default function LandingPage({ onGetStarted }: LandingPageProps) {
+  const [stories, setStories] = useState<any[]>([])
+  const [modalOpen, setModalOpen] = useState(false)
+
+  useEffect(() => {
+    async function fetchStories() {
+      const { data, error } = await supabase
+        .from("stories")
+        .select("*")
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(4)
+      if (data && data.length > 0) {
+        setStories(data)
+      } else {
+        setStories(dummyStories)
+      }
+    }
+    fetchStories()
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+      {/* Header */}
+      <header className="w-full bg-white/90 shadow-sm py-4 px-6 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-green-700 text-2xl font-bold">
+          <span className="text-3xl">🤝</span>
+          <span>Tigawane</span>
+        </div>
+      </header>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-green-600 to-green-700 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-r from-green-600 to-blue-500 text-white">
         <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-32 flex flex-col items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-8">
-            <div className="flex justify-center items-center gap-3 mb-6">
-              <span className="text-6xl">🤝</span>
-              <h1 className="text-5xl md:text-7xl font-bold">Tigawane</h1>
-            </div>
-
-            <h2 className="text-2xl md:text-4xl font-bold max-w-4xl mx-auto leading-tight">
-              Don't Waste It. Share It. <br />
-              <span className="text-yellow-300">Empower Your Community.</span>
-            </h2>
-
-            <p className="text-xl md:text-2xl max-w-3xl mx-auto text-green-100">
-              Malawi's first free sharing platform for <strong>food and essential items</strong>.<br />
-              Post what you don't need. Receive what you do.
-              <br />
-              <strong>Together, we fight hunger, reduce waste, and uplift our neighbors.</strong>
+            <h1 className="text-5xl md:text-7xl font-bold mb-6">Reduce Waste, Share Surplus</h1>
+            <p className="text-2xl md:text-3xl max-w-2xl mx-auto text-white/90 mb-10">
+              Join Tigawane and help build a sustainable community by sharing items you no longer need
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
-              <div className="flex items-center gap-2 text-green-100">
-                <span className="text-green-300">✅</span>
-                <span>Share leftover food</span>
-              </div>
-              <div className="flex items-center gap-2 text-green-100">
-                <span className="text-green-300">✅</span>
-                <span>Give away clothes & shoes</span>
-              </div>
-              <div className="flex items-center gap-2 text-green-100">
-                <span className="text-green-300">✅</span>
-                <span>Help your community</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-              <Button
-                onClick={onGetStarted}
-                size="lg"
-                className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-lg px-8 py-4"
-              >
-                Join the Movement
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button
-                onClick={onGetStarted}
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-green-700 font-bold text-lg px-8 py-4"
-              >
-                List an Item Now
-              </Button>
-            </div>
+            <Button
+              onClick={onGetStarted}
+              size="lg"
+              className="bg-white text-green-700 hover:bg-green-100 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
+            >
+              Get Started <ArrowRight className="ml-2 h-6 w-6" />
+            </Button>
           </div>
         </div>
       </section>
@@ -195,60 +201,51 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="border-l-4 border-l-green-500">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-600 font-bold">M</span>
-                  </div>
-                  <div>
-                    <blockquote className="text-lg italic text-gray-700 mb-3">
-                      "I had leftover vegetables from the market. Posted on Tigawane—they were picked up within an
-                      hour!"
-                    </blockquote>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Mercy</span>
-                      <span className="text-gray-500">•</span>
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        Blantyre
+            {stories.map((s, i) => (
+              <Card key={i} className={`border-l-4 border-l-${s.color || (i % 2 === 0 ? "green" : "blue")}-500`}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 bg-${s.color || (i % 2 === 0 ? "green" : "blue")}-100 rounded-full flex items-center justify-center`}>
+                      <span className={`text-${s.color || (i % 2 === 0 ? "green" : "blue")}-600 font-bold`}>
+                        {s.name[0]}
                       </span>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-blue-500">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 font-bold">D</span>
-                  </div>
-                  <div>
-                    <blockquote className="text-lg italic text-gray-700 mb-3">
-                      "I gave away my son's shoes. They now help a child walk to school every day."
-                    </blockquote>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Dan</span>
-                      <span className="text-gray-500">•</span>
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        Lilongwe
-                      </span>
+                    <div>
+                      <blockquote className="text-lg italic text-gray-700 mb-3">
+                        "{s.story}"
+                      </blockquote>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{s.name}</span>
+                        <span className="text-gray-500">•</span>
+                        <span className="text-gray-500 flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {s.location}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           <div className="text-center mt-12">
             <p className="text-lg text-gray-600 mb-4">Want to be featured? Share your Tigawane moment!</p>
-            <Button variant="outline" className="border-green-500 text-green-600 hover:bg-green-50">
+            <Button
+              variant="outline"
+              className="border-green-500 text-green-600 hover:bg-green-50"
+              onClick={() => setModalOpen(true)}
+            >
               <MessageCircle className="mr-2 h-4 w-4" />
               Submit your story
             </Button>
+            <SubmitStoryModal
+              open={modalOpen}
+              onClose={() => setModalOpen(false)}
+              onSuccess={() => {
+                // Optionally refetch stories after submission
+              }}
+            />
           </div>
         </div>
       </section>
@@ -274,7 +271,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Share or Receive?</h2>
           <p className="text-xl mb-8">
-            Join over <strong>1,000+</strong> Malawians creating a culture of generosity.
+            Join other Malawians creating a culture of generosity.
             <br />
             List your first item in seconds—food or non-food.
           </p>
@@ -315,8 +312,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <div>
               <h3 className="font-semibold mb-4">Contact</h3>
               <div className="space-y-2 text-gray-400">
-                <p>📱 WhatsApp: Click to Message Us</p>
-                <p>📧 hello@tigawane.org</p>
+                <p>📱 WhatsApp: +265 986 445 261</p>
+                <p>📧 hello.tigawane.org@gmail.com</p>
                 <p>🌍 Malawi-based</p>
               </div>
             </div>
@@ -324,10 +321,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <div>
               <h3 className="font-semibold mb-4">Community</h3>
               <div className="space-y-2 text-gray-400">
-                <p>💬 Facebook Page</p>
-                <p>📱 WhatsApp Groups</p>
-                <p>📧 Newsletter</p>
-              </div>
+                <p>💬 Facebook Page: <a href="https://www.facebook.com/tigawane" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">Tigawane</a></p>
+              </div>  
             </div>
 
             <div>
@@ -341,7 +336,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 Tigawane. Built with love for the people of Malawi.</p>
+            <p>&copy; 2025 Tigawane. Built with love for the people of Malawi.</p>
           </div>
         </div>
       </footer>

@@ -14,6 +14,7 @@ import CategoriesManager from "./CategoriesManager"
 import UsersManager from "./UsersManager"
 import Analytics from "./Analytics"
 import AdminLoading from "./AdminLoading"
+import StoriesManager from "./StoriesManager"
 
 interface DashboardStats {
   totalItems: number
@@ -193,7 +194,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="listings" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl mx-auto mb-8">
+          <TabsList className="grid w-full grid-cols-6 max-w-2xl mx-auto mb-8">
             <TabsTrigger value="listings" className="flex flex-col items-center gap-1 text-xs p-2">
               <Package className="h-4 w-4" />
               <span>Listings</span>
@@ -217,6 +218,10 @@ export default function AdminDashboard() {
               <BarChart3 className="h-4 w-4" />
               <span>Analytics</span>
             </TabsTrigger>
+            <TabsTrigger value="stories" className="flex flex-col items-center gap-1 text-xs p-2">
+              <span role="img" aria-label="Stories">📖</span>
+              <span>Stories</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings">
@@ -237,6 +242,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="analytics">
             <Analytics stats={stats} />
+          </TabsContent>
+
+          <TabsContent value="stories">
+            <StoriesManager />
           </TabsContent>
         </Tabs>
       </main>

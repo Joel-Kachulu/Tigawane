@@ -23,9 +23,10 @@ interface Notification {
 
 interface NotificationCenterProps {
   onOpenChat: (claimId: string, otherUserName: string) => void
+  onNavigateToMyItems?: () => void
 }
 
-export default function NotificationCenter({ onOpenChat }: NotificationCenterProps) {
+export default function NotificationCenter({ onOpenChat, onNavigateToMyItems }: NotificationCenterProps) {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -193,12 +194,24 @@ export default function NotificationCenter({ onOpenChat }: NotificationCenterPro
     }
   }
 
+  const clearAllNotifications = async () => {
+    if (!user) return
+    try {
+      await supabase.from("notifications").delete().eq("user_id", user.id)
+      setNotifications([])
+      setUnreadCount(0)
+    } catch (error) {
+      console.error("❌ Error clearing notifications:", error)
+    }
+  }
+
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
       await markAsRead(notification.id)
     }
 
-    if (notification.type === "message" && notification.related_claim_id) {
+    // Open chat for more notification types if related_claim_id exists
+    if ((["message", "item_request", "status_update"].includes(notification.type)) && notification.related_claim_id) {
       try {
         // Get the claim details and user names separately
         const { data: claimData } = await supabase
@@ -290,11 +303,18 @@ export default function NotificationCenter({ onOpenChat }: NotificationCenterPro
         <DialogHeader>
           <div className="flex justify-between items-center">
             <DialogTitle>Notifications</DialogTitle>
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                Mark all read
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+                  Mark all read
+                </Button>
+              )}
+              {notifications.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearAllNotifications} title="Clear all notifications">
+                  🗑️
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
