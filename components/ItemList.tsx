@@ -187,7 +187,7 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
   if (loading && items.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading available {itemType} items...</div>
+        <div className="text-base sm:text-lg lg:text-xl">Loading available {itemType} items...</div>
       </div>
     )
   }
@@ -195,8 +195,8 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
   if (error) {
     return (
       <div className="flex flex-col justify-center items-center h-64 space-y-4">
-        <div className="text-red-600 text-lg">Error loading {itemType} items</div>
-        <div className="text-red-500 text-sm max-w-md text-center">{error}</div>
+        <div className="text-red-600 text-base sm:text-lg lg:text-xl">Error loading {itemType} items</div>
+        <div className="text-red-500 text-sm sm:text-base max-w-md text-center">{error}</div>
         <Button onClick={() => fetchItems(0, false)} variant="outline">
           Try Again
         </Button>
@@ -213,7 +213,7 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
             variant={filter === category ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter(category)}
-            className={`text-xs h-7 ${filter === category ? "bg-green-600 hover:bg-green-700" : ""}`}
+            className={`text-xs sm:text-sm lg:text-base h-7 sm:h-8 lg:h-9 ${filter === category ? "bg-green-600 hover:bg-green-700" : ""}`}
           >
             {category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ")}
           </Button>
@@ -222,14 +222,19 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
 
       {filteredItems.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg">No {itemType} items available at the moment</div>
-          <div className="text-gray-400 text-sm mt-2">Check back later or be the first to share!</div>
+          <div className="text-gray-500 text-base sm:text-lg lg:text-xl">No {itemType} items available at the moment</div>
+          <div className="text-gray-400 text-sm sm:text-base mt-2">Check back later or be the first to share!</div>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {filteredItems.map((item) => (
-              <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
+              <Card 
+                key={item.id} 
+                className="overflow-hidden border border-gray-200" 
+                clickable={true}
+                onClick={() => onClaimItem(item)}
+              >
                 {item.image_url && (
                   <div className="relative h-28 w-full">
                     <Image
@@ -244,7 +249,11 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
                 )}
                 <CardHeader className="p-2">
                   <div className="flex justify-between items-start gap-1">
-                    <CardTitle className="text-xs font-medium line-clamp-1">{item.title}</CardTitle>
+                    <div className="relative group flex-1 min-w-0">
+                      <CardTitle className="text-xs sm:text-sm lg:text-base font-medium line-clamp-1 group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                        {item.title}
+                      </CardTitle>
+                    </div>
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 h-4">
                         {item.category}
@@ -252,28 +261,30 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
                       {getStatusBadge(item.status)}
                     </div>
                   </div>
-                  <CardDescription className="text-xs line-clamp-1 text-gray-600 mt-0.5">
-                    {item.description}
-                  </CardDescription>
+                  <div className="relative group mt-0.5">
+                    <CardDescription className="text-xs sm:text-sm line-clamp-1 text-gray-600 group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                      {item.description}
+                    </CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-2 pt-0 space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate text-[10px]">{item.pickup_location}</span>
+                    <span className="truncate">{item.pickup_location}</span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
                     <User className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate text-[10px]">{item.owner_name}</span>
+                    <span className="truncate">{item.owner_name}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1">
                       <Package className="h-3 w-3" />
-                      <span className="font-medium text-[10px]">{item.quantity}</span>
+                      <span className="font-medium text-xs sm:text-sm">{item.quantity}</span>
                     </div>
                     {item.condition && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                      <Badge variant="outline" className="text-xs px-1 py-0 h-4">
                         {item.condition}
                       </Badge>
                     )}
@@ -282,7 +293,7 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
                   {item.expiry_date && (
                     <div className="flex items-center gap-1 text-orange-600">
                       <Clock className="h-3 w-3" />
-                      <span className="text-[10px]">
+                      <span className="text-xs sm:text-sm">
                         Exp:{" "}
                         {new Date(item.expiry_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                       </span>
@@ -291,8 +302,11 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
 
                   <div className="flex gap-1 pt-1">
                     <Button
-                      onClick={() => onClaimItem(item)}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-[10px] h-6 px-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClaimItem(item);
+                      }}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-6 sm:h-7 px-1"
                       disabled={item.status !== "available"}
                     >
                       {item.status === "available" ? "Request" : "Requested"}
@@ -300,10 +314,13 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
 
                     {user && user.id === item.user_id && (
                       <Button
-                        onClick={() => handleEditItem(item)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditItem(item);
+                        }}
                         variant="outline"
                         size="sm"
-                        className="px-1 text-[10px] h-6"
+                        className="px-1 text-xs sm:text-sm h-6 sm:h-7"
                       >
                         Edit
                       </Button>
@@ -316,7 +333,7 @@ export default function ItemList({ itemType, onClaimItem }: ItemListProps) {
 
           {hasMore && (
             <div className="text-center pt-4">
-              <Button onClick={loadMore} variant="outline" disabled={loading} className="min-w-32 h-8 text-xs">
+              <Button onClick={loadMore} variant="outline" disabled={loading} className="min-w-32 h-8 sm:h-9 text-xs sm:text-sm">
                 {loading ? "Loading..." : "Load More"}
               </Button>
             </div>

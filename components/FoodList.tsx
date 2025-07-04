@@ -112,7 +112,7 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading available food...</div>
+        <div className="text-base sm:text-lg lg:text-xl">Loading available food...</div>
       </div>
     )
   }
@@ -120,8 +120,8 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
   if (error) {
     return (
       <div className="flex flex-col justify-center items-center h-64 space-y-4">
-        <div className="text-red-600 text-lg">Error loading food items</div>
-        <div className="text-red-500 text-sm max-w-md text-center">{error}</div>
+        <div className="text-red-600 text-base sm:text-lg lg:text-xl">Error loading food items</div>
+        <div className="text-red-500 text-sm sm:text-base max-w-md text-center">{error}</div>
         <Button onClick={fetchFoodItems} variant="outline">
           Try Again
         </Button>
@@ -138,7 +138,7 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
             variant={filter === category ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter(category)}
-            className={filter === category ? "bg-green-600 hover:bg-green-700" : ""}
+            className={`text-xs sm:text-sm lg:text-base ${filter === category ? "bg-green-600 hover:bg-green-700" : ""}`}
           >
             {category.charAt(0).toUpperCase() + category.slice(1)}
           </Button>
@@ -147,13 +147,18 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
 
       {filteredItems.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg">No food items available at the moment</div>
-          <div className="text-gray-400 text-sm mt-2">Check back later or be the first to share!</div>
+          <div className="text-gray-500 text-base sm:text-lg lg:text-xl">No food items available at the moment</div>
+          <div className="text-gray-400 text-sm sm:text-base mt-2">Check back later or be the first to share!</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card 
+              key={item.id} 
+              className="overflow-hidden" 
+              clickable={true}
+              onClick={() => onClaimFood(item)}
+            >
               {item.image_url && (
                 <div className="relative h-48 w-full">
                   <Image src={item.image_url || "/placeholder.svg"} alt={item.title} fill className="object-cover" />
@@ -161,25 +166,29 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
               )}
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{item.title}</CardTitle>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  <CardTitle className="text-base sm:text-lg lg:text-xl">{item.title}</CardTitle>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs sm:text-sm">
                     {item.category}
                   </Badge>
                 </div>
-                <CardDescription className="line-clamp-2">{item.description}</CardDescription>
+                <div className="relative group">
+                  <CardDescription className="line-clamp-2 text-sm sm:text-base group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                    {item.description}
+                  </CardDescription>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
                   <MapPin className="h-4 w-4" />
                   <span>{item.pickup_location}</span>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
                   <User className="h-4 w-4" />
                   <span>Shared by {item.owner_name || "Anonymous"}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-sm sm:text-base">
                   <span className="font-medium">Quantity: {item.quantity}</span>
                   {item.expiry_date && (
                     <div className="flex items-center gap-1 text-orange-600">
@@ -189,7 +198,13 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
                   )}
                 </div>
 
-                <Button onClick={() => onClaimFood(item)} className="w-full bg-green-600 hover:bg-green-700">
+                <Button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClaimFood(item);
+                  }} 
+                  className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
+                >
                   Request This Food
                 </Button>
               </CardContent>

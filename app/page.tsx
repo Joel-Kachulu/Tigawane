@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth, AuthProvider } from "@/contexts/AuthContext"
 import Auth from "@/components/Auth"
 import LandingPage from "@/components/LandingPage"
@@ -13,7 +13,7 @@ import NotificationCenter from "@/components/NotificationCenter"
 import CollaborationCenter from "@/components/CollaborationCenter"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LogOut, Plus, Home, Users, User, Menu } from "lucide-react"
+import { LogOut, Plus, Home, Users, User, Menu, ChevronDown } from "lucide-react"
 import MyItemsManager from "@/components/MyItemsManager"
 import Link from "next/link"
 
@@ -35,41 +35,37 @@ interface Item {
 }
 
 function AppContent() {
-  const { user, loading, signOut } = useAuth()
+  const { user, signOut } = useAuth()
+  const [currentTab, setCurrentTab] = useState("browse-food")
   const [showLanding, setShowLanding] = useState(true)
+  const [shareDropdownOpen, setShareDropdownOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [showChatModal, setShowChatModal] = useState(false)
-  const [showCollaborationChat, setShowCollaborationChat] = useState(false)
-  const [chatClaimId, setChatClaimId] = useState<string | null>(null)
+  const [chatClaimId, setChatClaimId] = useState("")
   const [chatOtherUser, setChatOtherUser] = useState("")
-  const [collaborationChatId, setCollaborationChatId] = useState<string | null>(null)
+  const [showCollaborationChat, setShowCollaborationChat] = useState(false)
+  const [collaborationChatId, setCollaborationChatId] = useState("")
   const [collaborationChatTitle, setCollaborationChatTitle] = useState("")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [myItemsRefreshTrigger, setMyItemsRefreshTrigger] = useState(0)
-  const [currentTab, setCurrentTab] = useState("browse-food")
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => setLoading(false), 500)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleGetStarted = () => setShowLanding(false)
   const handleGoHome = () => setShowLanding(true)
 
   const handleSignOut = async () => {
     try {
-      console.log("Sign out button clicked")
       await signOut()
       setShowLanding(true)
-      setSelectedItem(null)
-      setShowClaimModal(false)
-      setShowChatModal(false)
-      setShowCollaborationChat(false)
-      setChatClaimId(null)
-      setChatOtherUser("")
-      setCollaborationChatId(null)
-      setCollaborationChatTitle("")
-      setRefreshTrigger(0)
-      setMyItemsRefreshTrigger(0)
     } catch (error) {
-      console.error("Error in handleSignOut:", error)
+      console.error("Error signing out:", error)
     }
   }
 
@@ -80,11 +76,11 @@ function AppContent() {
 
   const handleItemAdded = () => {
     setRefreshTrigger((prev) => prev + 1)
-    setMyItemsRefreshTrigger((prev) => prev + 1)
   }
 
   const handleItemClaimed = () => {
     setRefreshTrigger((prev) => prev + 1)
+    setMyItemsRefreshTrigger((prev) => prev + 1)
   }
 
   const handleOpenChat = (claimId: string, otherUserName: string) => {
@@ -100,13 +96,30 @@ function AppContent() {
   }
 
   const handleMyItemUpdated = () => {
-    setRefreshTrigger((prev) => prev + 1)
     setMyItemsRefreshTrigger((prev) => prev + 1)
   }
 
   const handleNavigateToMyItems = () => {
     setCurrentTab("my-items")
   }
+
+  // Close share dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.share-dropdown-container')) {
+        setShareDropdownOpen(false)
+      }
+    }
+
+    if (shareDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [shareDropdownOpen])
 
   if (loading) {
     return (
@@ -133,8 +146,8 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🤝</span>
-              <h1 className="text-xl font-bold text-green-700">Tigawane</h1>
+              <span className="text-2xl sm:text-3xl">🤝</span>
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700">Tigawane</h1>
             </div>
             <div className="flex items-center gap-2">
               <NotificationCenter onOpenChat={handleOpenChat} onNavigateToMyItems={handleNavigateToMyItems} />
@@ -142,12 +155,7 @@ function AppContent() {
                 <Home className="h-4 w-4" />
                 <span className="hidden sm:inline">Home</span>
               </Button>
-              <Link href="/profile">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Profile</span>
-                </Button>
-              </Link>
+        
               <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2" size="sm">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -159,68 +167,153 @@ function AppContent() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-          {/* Mobile: Hamburger menu */}
-          <div className="sm:hidden mb-6 flex justify-center">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setMobileMenuOpen((open) => !open)}
-              aria-label="Open menu"
-              className="rounded-full"
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-            {mobileMenuOpen && (
-              <div className="absolute z-50 mt-2 w-56 bg-white rounded-xl shadow-lg border p-2 flex flex-col gap-2">
-                {[
-                  { value: "browse-food", label: "Food", icon: <span className='text-lg'>🍚</span> },
-                  { value: "browse-items", label: "Items", icon: <span className='text-lg'>👕</span> },
-                  { value: "share-food", label: "Share Food", icon: <Plus className='h-4 w-4' /> },
-                  { value: "share-items", label: "Share Items", icon: <Plus className='h-4 w-4' /> },
-                  { value: "collaborate", label: "Collaborate", icon: <Users className='h-4 w-4' /> },
-                  { value: "my-items", label: "My Items", icon: <User className='h-4 w-4' /> },
-                ].map((tab) => (
-                  <Button
-                    key={tab.value}
-                    variant={currentTab === tab.value ? "default" : "ghost"}
-                    className="flex items-center gap-2 w-full justify-start px-4 py-3 text-base rounded-lg"
-                    onClick={() => {
-                      setCurrentTab(tab.value)
-                      setMobileMenuOpen(false)
-                    }}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </Button>
-                ))}
+          {/* Mobile: Horizontal Navigation Menu */}
+          <div className="sm:hidden mb-12">
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+              <div className="grid grid-cols-3 gap-4">
+                {/* Browse Section */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Browse</span>
+                  <div className="flex flex-col gap-2 w-full">
+                    <Button
+                      variant={currentTab === "browse-food" ? "default" : "outline"}
+                      size="sm"
+                      className="flex flex-col items-center gap-1 px-3 py-3 h-auto text-xs w-full"
+                      onClick={() => setCurrentTab("browse-food")}
+                    >
+                      <span className="text-base">🍚</span>
+                      <span className="text-xs font-medium">Food</span>
+                    </Button>
+                    <Button
+                      variant={currentTab === "browse-items" ? "default" : "outline"}
+                      size="sm"
+                      className="flex flex-col items-center gap-1 px-3 py-3 h-auto text-xs w-full"
+                      onClick={() => setCurrentTab("browse-items")}
+                    >
+                      <span className="text-base">👕</span>
+                      <span className="text-xs font-medium">Items</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Share Section with Dropdown */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Share</span>
+                  <div className="relative share-dropdown-container w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center justify-center gap-1 px-3 py-3 h-auto text-xs w-full"
+                      onClick={() => setShareDropdownOpen(!shareDropdownOpen)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="text-xs font-medium">Share</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${shareDropdownOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                    
+                    {shareDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50">
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            variant={currentTab === "share-food" ? "default" : "ghost"}
+                            size="sm"
+                            className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-xs"
+                            onClick={() => {
+                              setCurrentTab("share-food")
+                              setShareDropdownOpen(false)
+                            }}
+                          >
+                            <span className="text-sm">🍚</span>
+                            <span className="text-xs font-medium">Food</span>
+                          </Button>
+                          <Button
+                            variant={currentTab === "share-items" ? "default" : "ghost"}
+                            size="sm"
+                            className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-xs"
+                            onClick={() => {
+                              setCurrentTab("share-items")
+                              setShareDropdownOpen(false)
+                            }}
+                          >
+                            <span className="text-sm">👕</span>
+                            <span className="text-xs font-medium">Items</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Community Section */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Community</span>
+                  <div className="flex flex-col gap-2 w-full">
+                    <Button
+                      variant={currentTab === "collaborate" ? "default" : "outline"}
+                      size="sm"
+                      className="flex flex-col items-center gap-1 px-3 py-3 h-auto text-xs w-full"
+                      onClick={() => setCurrentTab("collaborate")}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span className="text-xs font-medium">Collaborate</span>
+                    </Button>
+                    <Button
+                      variant={currentTab === "my-items" ? "default" : "outline"}
+                      size="sm"
+                      className="flex flex-col items-center gap-1 px-3 py-3 h-auto text-xs w-full"
+                      onClick={() => setCurrentTab("my-items")}
+                    >
+                      <User className="h-4 w-4" />
+                      <span className="text-xs font-medium">My Items</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
           </div>
           {/* Desktop: Tab bar */}
           <TabsList
-            className="hidden sm:grid sm:grid-cols-6 max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md p-2 gap-2"
+            className="hidden sm:grid sm:grid-cols-6 max-w-4xl mx-auto mb-12 bg-white rounded-xl shadow-md p-2 gap-2"
           >
-            <TabsTrigger value="browse-food" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
+            <TabsTrigger 
+              value="browse-food" 
+              className="flex flex-col items-center gap-1 text-sm px-4 py-3 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg hover:bg-gray-100 data-[state=active]:hover:bg-green-700"
+            >
               <span className="text-lg">🍚</span>
               <span>Food</span>
             </TabsTrigger>
-            <TabsTrigger value="browse-items" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
+            <TabsTrigger 
+              value="browse-items" 
+              className="flex flex-col items-center gap-1 text-sm px-4 py-3 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg hover:bg-gray-100 data-[state=active]:hover:bg-green-700"
+            >
               <span className="text-lg">👕</span>
               <span>Items</span>
             </TabsTrigger>
-            <TabsTrigger value="share-food" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
+            <TabsTrigger 
+              value="share-food" 
+              className="flex flex-col items-center gap-1 text-sm px-4 py-3 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg hover:bg-gray-100 data-[state=active]:hover:bg-green-700"
+            >
               <Plus className="h-4 w-4" />
               <span>Share Food</span>
             </TabsTrigger>
-            <TabsTrigger value="share-items" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
+            <TabsTrigger 
+              value="share-items" 
+              className="flex flex-col items-center gap-1 text-sm px-4 py-3 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg hover:bg-gray-100 data-[state=active]:hover:bg-green-700"
+            >
               <Plus className="h-4 w-4" />
               <span>Share Items</span>
             </TabsTrigger>
-            <TabsTrigger value="collaborate" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
+            <TabsTrigger 
+              value="collaborate" 
+              className="flex flex-col items-center gap-1 text-sm px-4 py-3 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg hover:bg-gray-100 data-[state=active]:hover:bg-green-700"
+            >
               <Users className="h-4 w-4" />
               <span>Collaborate</span>
             </TabsTrigger>
-            <TabsTrigger value="my-items" className="flex flex-col items-center gap-1 text-sm px-4 py-2 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg">
+            <TabsTrigger 
+              value="my-items" 
+              className="flex flex-col items-center gap-1 text-sm px-4 py-3 font-semibold transition-all duration-200 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg hover:bg-gray-100 data-[state=active]:hover:bg-green-700"
+            >
               <User className="h-4 w-4" />
               <span>My Items</span>
             </TabsTrigger>
@@ -229,8 +322,8 @@ function AppContent() {
           <TabsContent value="browse-food">
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Available Food</h2>
-                <p className="text-gray-600">Find food shared by your community</p>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Available Food</h2>
+                <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find food shared by your community</p>
               </div>
               <ItemList key={`food-${refreshTrigger}`} itemType="food" onClaimItem={handleClaimItem} />
             </div>
@@ -239,8 +332,8 @@ function AppContent() {
           <TabsContent value="browse-items">
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Available Items</h2>
-                <p className="text-gray-600">Find clothes, shoes, and household items</p>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Available Items</h2>
+                <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find clothes, shoes, and household items</p>
               </div>
               <ItemList key={`items-${refreshTrigger}`} itemType="non-food" onClaimItem={handleClaimItem} />
             </div>
@@ -249,8 +342,8 @@ function AppContent() {
           <TabsContent value="share-food">
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Share Food</h2>
-                <p className="text-gray-600">Help reduce waste by sharing surplus food</p>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Share Food</h2>
+                <p className="text-sm sm:text-base lg:text-lg text-gray-600">Help reduce waste by sharing surplus food</p>
               </div>
               <AddItem itemType="food" onItemAdded={handleItemAdded} />
             </div>
@@ -259,8 +352,8 @@ function AppContent() {
           <TabsContent value="share-items">
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Share Items</h2>
-                <p className="text-gray-600">Give away clothes, shoes, and household items</p>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Share Items</h2>
+                <p className="text-sm sm:text-base lg:text-lg text-gray-600">Give away clothes, shoes, and household items</p>
               </div>
               <AddItem itemType="non-food" onItemAdded={handleItemAdded} />
             </div>

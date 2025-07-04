@@ -188,7 +188,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading your items...</div>
+        <div className="text-base sm:text-lg lg:text-xl">Loading your items...</div>
       </div>
     )
   }
@@ -196,8 +196,8 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   if (error) {
     return (
       <div className="flex flex-col justify-center items-center h-64 space-y-4">
-        <div className="text-red-600 text-lg">Error loading your items</div>
-        <div className="text-red-500 text-sm max-w-md text-center">{error}</div>
+        <div className="text-red-600 text-base sm:text-lg lg:text-xl">Error loading your items</div>
+        <div className="text-red-500 text-sm sm:text-base max-w-md text-center">{error}</div>
         <Button onClick={fetchMyItems} variant="outline">
           Try Again
         </Button>
@@ -208,26 +208,26 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">My Shared Items</h2>
-        <p className="text-gray-600">Manage your food and item listings</p>
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">My Shared Items</h2>
+        <p className="text-sm sm:text-base lg:text-lg text-gray-600">Manage your food and item listings</p>
 
         {/* Stats */}
         <div className="flex justify-center gap-4 mt-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.total}</div>
-            <div className="text-xs text-gray-500">Total</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">{stats.total}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Total</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.available}</div>
-            <div className="text-xs text-gray-500">Available</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600">{stats.available}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Available</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">{stats.requested}</div>
-            <div className="text-xs text-gray-500">Requested</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-yellow-600">{stats.requested}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Requested</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-600">{stats.completed}</div>
-            <div className="text-xs text-gray-500">Completed</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-600">{stats.completed}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Completed</div>
           </div>
         </div>
       </div>
@@ -239,7 +239,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
             variant={filter === status ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter(status)}
-            className={filter === status ? "bg-green-600 hover:bg-green-700" : ""}
+            className={`text-xs sm:text-sm lg:text-base ${filter === status ? "bg-green-600 hover:bg-green-700" : ""}`}
           >
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Button>
@@ -248,17 +248,22 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
 
       {filteredItems.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-500 text-lg">
+          <div className="text-gray-500 text-base sm:text-lg lg:text-xl">
             {filter === "all" ? "You haven't shared any items yet" : `No ${filter} items found`}
           </div>
-          <div className="text-gray-400 text-sm mt-2">
+          <div className="text-gray-400 text-sm sm:text-base mt-2">
             {filter === "all" ? "Start sharing to help your community!" : "Try a different filter"}
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card 
+              key={item.id} 
+              className="overflow-hidden" 
+              clickable={true}
+              onClick={() => handleEditItem(item)}
+            >
               {item.image_url && (
                 <div className="relative h-48 w-full">
                   <Image
@@ -273,43 +278,47 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
               )}
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg flex items-center gap-2">
+                  <CardTitle className="text-base sm:text-lg lg:text-xl flex items-center gap-2">
                     {item.title}
                     {requestCounts[item.id] > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-200 text-yellow-800">
+                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs sm:text-sm font-semibold bg-yellow-200 text-yellow-800">
                         {requestCounts[item.id]} Request{requestCounts[item.id] > 1 ? "s" : ""}
                       </span>
                     )}
                   </CardTitle>
                   <div className="flex flex-col gap-1">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs sm:text-sm">
                       {item.category}
                     </Badge>
                     {getStatusBadge(item.status)}
                   </div>
                 </div>
-                <CardDescription className="line-clamp-2">{item.description}</CardDescription>
+                <div className="relative group">
+                  <CardDescription className="line-clamp-2 text-sm sm:text-base group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                    {item.description}
+                  </CardDescription>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
                   <MapPin className="h-4 w-4" />
                   <span>{item.pickup_location}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-sm sm:text-base">
                   <div className="flex items-center gap-2">
                     <Package className="h-4 w-4" />
                     <span className="font-medium">{item.quantity}</span>
                   </div>
                   {item.condition && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs sm:text-sm">
                       {item.condition}
                     </Badge>
                   )}
                 </div>
 
                 {item.expiry_date && (
-                  <div className="flex items-center gap-1 text-orange-600 text-sm">
+                  <div className="flex items-center gap-1 text-orange-600 text-sm sm:text-base">
                     <Clock className="h-4 w-4" />
                     <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                   </div>
@@ -317,19 +326,25 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
 
                 <div className="flex gap-2 pt-2">
                   <Button
-                    onClick={() => handleEditItem(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditItem(item);
+                    }}
                     variant="outline"
                     size="sm"
-                    className="flex-1 flex items-center gap-2"
+                    className="flex-1 flex items-center gap-2 text-xs sm:text-sm"
                   >
                     <Edit className="h-4 w-4" />
                     Edit
                   </Button>
                   <Button
-                    onClick={() => handleDeleteItem(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteItem(item);
+                    }}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm"
                     disabled={deleting === item.id}
                   >
                     <Trash2 className="h-4 w-4" />

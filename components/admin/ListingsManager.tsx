@@ -212,7 +212,7 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading listings...</div>
+        <div className="text-base sm:text-lg lg:text-xl">Loading listings...</div>
       </div>
     )
   }
@@ -221,10 +221,7 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Manage Listings
-          </CardTitle>
+          <CardTitle className="text-xl sm:text-2xl lg:text-3xl">Manage Listings</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Filters */}
@@ -235,12 +232,12 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
                 placeholder="Search items..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 text-sm sm:text-base"
               />
             </div>
 
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm sm:text-base">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -256,10 +253,11 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
               placeholder="Filter by location..."
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
+              className="text-sm sm:text-base"
             />
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm sm:text-base">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -275,7 +273,7 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
 
           {/* Results Summary */}
           <div className="mb-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Showing {filteredItems.length} of {items.length} items
             </p>
           </div>
@@ -283,7 +281,11 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
           {/* Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={item.id} 
+                clickable={true}
+                onClick={() => handleEdit(item)}
+              >
                 {item.image_url && (
                   <div className="relative h-32 w-full">
                     <Image
@@ -296,13 +298,21 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
                 )}
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-sm line-clamp-1">{item.title}</h3>
+                    <div className="relative group flex-1 min-w-0">
+                      <h3 className="font-medium text-sm sm:text-base lg:text-lg line-clamp-1 group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                        {item.title}
+                      </h3>
+                    </div>
                     {getStatusBadge(item.status)}
                   </div>
 
-                  <p className="text-xs text-gray-600 line-clamp-2 mb-2">{item.description}</p>
+                  <div className="relative group mb-2">
+                    <p className="text-xs sm:text-sm lg:text-base text-gray-600 line-clamp-2 group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                      {item.description}
+                    </p>
+                  </div>
 
-                  <div className="space-y-1 text-xs text-gray-500 mb-3">
+                  <div className="space-y-1 text-xs sm:text-sm text-gray-500 mb-3">
                     <div className="flex items-center gap-1">
                       <Package className="h-3 w-3" />
                       <span>
@@ -324,15 +334,26 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
                   </div>
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(item)} className="flex-1">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(item);
+                      }} 
+                      className="flex-1 text-xs sm:text-sm"
+                    >
                       <Edit className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDelete(item.id)}
-                      className="text-red-600 hover:text-red-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item.id);
+                      }}
+                      className="text-red-600 hover:text-red-700 text-xs sm:text-sm"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -345,8 +366,8 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
           {filteredItems.length === 0 && (
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>
-              <p className="text-gray-600">Try adjusting your filters to see more results.</p>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-medium text-gray-900 mb-2">No items found</h3>
+              <p className="text-sm sm:text-base lg:text-lg text-gray-600">Try adjusting your filters to see more results.</p>
             </div>
           )}
         </CardContent>
@@ -356,33 +377,35 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Item</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl lg:text-2xl">Edit Item</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title" className="text-sm sm:text-base">Title</Label>
               <Input
                 id="title"
                 value={editForm.title}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                className="text-sm sm:text-base"
               />
             </div>
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description" className="text-sm sm:text-base">Description</Label>
               <Textarea
                 id="description"
                 value={editForm.description}
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                 rows={3}
+                className="text-sm sm:text-base"
               />
             </div>
             <div>
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category" className="text-sm sm:text-base">Category</Label>
               <Select
                 value={editForm.category}
                 onValueChange={(value) => setEditForm({ ...editForm, category: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="text-sm sm:text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -395,26 +418,28 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
               </Select>
             </div>
             <div>
-              <Label htmlFor="quantity">Quantity</Label>
+              <Label htmlFor="quantity" className="text-sm sm:text-base">Quantity</Label>
               <Input
                 id="quantity"
                 value={editForm.quantity}
                 onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                className="text-sm sm:text-base"
               />
             </div>
             <div>
-              <Label htmlFor="pickup_location">Pickup Location</Label>
+              <Label htmlFor="pickup_location" className="text-sm sm:text-base">Pickup Location</Label>
               <Input
                 id="pickup_location"
                 value={editForm.pickup_location}
                 onChange={(e) => setEditForm({ ...editForm, pickup_location: e.target.value })}
+                className="text-sm sm:text-base"
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1 text-sm sm:text-base">
                 Cancel
               </Button>
-              <Button onClick={handleSaveEdit} className="flex-1">
+              <Button onClick={handleSaveEdit} className="flex-1 text-sm sm:text-base">
                 Save Changes
               </Button>
             </div>
