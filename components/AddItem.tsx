@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 interface AddItemProps {
   itemType: "food" | "non-food"
@@ -28,6 +29,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     condition: "",
     expiry_date: "",
     pickup_location: "",
+    area: "",
+    is_anonymous: false,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
 
@@ -55,6 +58,10 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     }
     if (!formData.pickup_location.trim()) {
       setError("Please enter pickup location")
+      return
+    }
+    if (!formData.area) {
+      setError("Please select your area/township")
       return
     }
     if (itemType === "non-food" && !formData.condition) {
@@ -111,6 +118,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         image_url: imageUrl,
         expiry_date: itemType === "food" && formData.expiry_date ? formData.expiry_date : null,
         condition: itemType === "non-food" && formData.condition ? formData.condition : null,
+        area: formData.area,
+        is_anonymous: formData.is_anonymous,
       }
 
       console.log("💾 Inserting item data:", itemData)
@@ -134,6 +143,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         condition: "",
         expiry_date: "",
         pickup_location: "",
+        area: "",
+        is_anonymous: false,
       })
       setImageFile(null)
 
@@ -164,6 +175,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
   const categories = getCategories()
   const conditions = ["new", "excellent", "good", "fair", "needs-repair", "old"]
+  const areaOptions = [
+    "area 18", "area 25", "area 23", "area 43", "area 30", "area 15", "area 14", "area 49", "Chilinde", "Kawale"
+  ]
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -261,6 +275,33 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               required
               disabled={loading}
             />
+          </div>
+          <div>
+            <Label htmlFor="area">Area/Township *</Label>
+            <Select
+              value={formData.area}
+              onValueChange={(value) => setFormData({ ...formData, area: value })}
+              required
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select area/township" />
+              </SelectTrigger>
+              <SelectContent>
+                {areaOptions.map((area) => (
+                  <SelectItem key={area} value={area}>{area.charAt(0).toUpperCase() + area.slice(1)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="is_anonymous"
+              checked={formData.is_anonymous}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_anonymous: checked })}
+              disabled={loading}
+            />
+            <Label htmlFor="is_anonymous">Share Anonymously</Label>
           </div>
 
           {itemType === "food" && (

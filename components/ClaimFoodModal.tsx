@@ -93,7 +93,16 @@ export default function ClaimFoodModal({ foodItem, isOpen, onClose, onClaimed }:
               <strong>Pickup Location:</strong> {foodItem.pickup_location}
             </p>
           </div>
-
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-2">
+            <div className="font-semibold text-yellow-800 mb-1 text-sm">Safety Tips:</div>
+            <ul className="list-disc list-inside text-xs text-yellow-900 space-y-1">
+              <li>Meet during the day</li>
+              <li>Meet in public places</li>
+              <li>Go with a friend</li>
+              <li>Keep it cash free</li>
+              <li>Trust your instincts and report suspicious activity</li>
+            </ul>
+          </div>
           <div>
             <Label htmlFor="message">Message (optional)</Label>
             <Textarea

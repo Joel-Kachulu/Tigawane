@@ -6,6 +6,15 @@ import { ArrowRight, MessageCircle, MapPin } from "lucide-react"
 import { useEffect, useState } from "react"
 import SubmitStoryModal from "./SubmitStoryModal"
 import { supabase } from "@/lib/supabase"
+// Unsplash fallback image for Malawi/food sharing
+const HERO_IMAGE_URL = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80" // Replace with a more relevant image if found
+// Slideshow images for hero background
+const HERO_IMAGES = [
+  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80", // Malawi landscape
+  "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=1200&q=80", // African children sharing food
+  "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1200&q=80", // Community sharing
+]
+const HERO_IMAGE_ALT = "Malawian people sharing food outdoors"
 
 interface LandingPageProps {
   onGetStarted: () => void
@@ -29,7 +38,7 @@ const dummyStories = [
 export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const [stories, setStories] = useState<any[]>([])
   const [modalOpen, setModalOpen] = useState(false)
-
+  // For demo, both CTAs use onGetStarted. You can wire to different actions if needed.
   useEffect(() => {
     async function fetchStories() {
       const { data, error } = await supabase
@@ -50,27 +59,36 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       {/* Header */}
-      <header className="w-full bg-white/90 shadow-sm py-4 px-6 flex items-center justify-center">
+      <header className="w-full bg-white/90 shadow-sm py-4 px-6 flex items-center justify-between">
         <div className="flex items-center gap-2 text-green-700 text-2xl font-bold">
           <span className="text-3xl">🤝</span>
           <span>Tigawane</span>
         </div>
+        {/* Placeholder for future nav/CTAs */}
+        <div />
       </header>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-green-600 to-blue-500 text-white">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-32 flex flex-col items-center justify-center min-h-[60vh]">
-          <div className="text-center space-y-8">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6">Reduce Waste, Share Surplus</h1>
-            <p className="text-2xl md:text-3xl max-w-2xl mx-auto text-white/90 mb-10">
-              Join Tigawane and help build a sustainable community by sharing items you no longer need
-            </p>
+      <section className="relative bg-gradient-to-r from-green-600 to-blue-500 text-white min-h-[60vh] flex items-center justify-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center text-center space-y-8">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg">Reduce Waste, Share Surplus</h1>
+          <p className="text-2xl md:text-3xl max-w-2xl mx-auto text-white/90 mb-10 drop-shadow">
+            Join Tigawane and help build a sustainable community by sharing items you no longer need
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               onClick={onGetStarted}
               size="lg"
-              className="bg-white text-green-700 hover:bg-green-100 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-6 shadow-lg rounded-full"
             >
-              Get Started <ArrowRight className="ml-2 h-6 w-6" />
+              Share Something Today <ArrowRight className="ml-2 h-6 w-6" />
+            </Button>
+            <Button
+              onClick={onGetStarted}
+              size="lg"
+              variant="outline"
+              className="border-white text-white hover:bg-white hover:text-green-700 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
+            >
+              See What’s Being Shared
             </Button>
           </div>
         </div>
@@ -280,18 +298,17 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <Button
               onClick={onGetStarted}
               size="lg"
-              className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-lg px-8 py-4"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-6 shadow-lg rounded-full"
             >
-              List an Item Now
-              <ArrowRight className="ml-2 h-5 w-5" />
+              Share Something Today <ArrowRight className="ml-2 h-6 w-6" />
             </Button>
             <Button
               onClick={onGetStarted}
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-green-700 font-bold text-lg px-8 py-4"
+              className="border-white text-white hover:bg-white hover:text-green-700 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
             >
-              Explore Available Listings
+              See What’s Being Shared
             </Button>
           </div>
         </div>

@@ -358,13 +358,13 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </form>
-        {claimInfo && claimInfo.owner_id === user?.id && claimInfo.status !== "completed" && (
+        {claimInfo && (claimInfo.owner_id === user?.id || claimInfo.claimer_id === user?.id) && claimInfo.status !== "completed" && (
           <Button
             onClick={handleComplete}
             disabled={completing}
             className="mt-2 bg-blue-600 hover:bg-blue-700 w-full"
           >
-            {completing ? "Completing..." : "Mark as Complete"}
+            {completing ? "Completing..." : "Mark as Shared"}
           </Button>
         )}
       </DialogContent>

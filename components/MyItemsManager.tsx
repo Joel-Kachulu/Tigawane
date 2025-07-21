@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Clock, Package, Edit, Trash2 } from "lucide-react"
+import { MapPin, Clock, Package, Edit, Trash2, CheckCircle } from "lucide-react"
 import Image from "next/image"
 import EditItemModal from "@/components/EditItemModal"
 
@@ -40,6 +40,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   const [filter, setFilter] = useState("all")
   const [deleting, setDeleting] = useState<string | null>(null)
   const [requestCounts, setRequestCounts] = useState<{ [itemId: string]: number }>({})
+  const [markingShared, setMarkingShared] = useState<string | null>(null)
 
   // Fetch request counts for each item
   const fetchRequestCounts = useCallback(async (itemIds: string[]) => {
@@ -142,6 +143,20 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
     },
     [user?.id, onItemUpdated],
   )
+
+  const handleMarkAsShared = useCallback(async (item: Item) => {
+    if (!confirm("Mark this item as shared? This will complete the sharing and remove it from active listings.")) return
+    setMarkingShared(item.id)
+    try {
+      await supabase.from("items").update({ status: "completed" }).eq("id", item.id)
+      fetchMyItems()
+      onItemUpdated()
+    } catch (error) {
+      alert("Error marking as shared.")
+    } finally {
+      setMarkingShared(null)
+    }
+  }, [fetchMyItems, onItemUpdated])
 
   const getStatusBadge = useCallback((status: string) => {
     switch (status) {
@@ -350,6 +365,18 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                     <Trash2 className="h-4 w-4" />
                     {deleting === item.id ? "..." : "Delete"}
                   </Button>
+                  {item.status !== "completed" && (
+                    <Button
+                      onClick={e => { e.stopPropagation(); handleMarkAsShared(item); }}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 text-green-700 border-green-400 hover:bg-green-50 text-xs sm:text-sm"
+                      disabled={markingShared === item.id}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      {markingShared === item.id ? "Marking..." : "Mark as Shared"}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
