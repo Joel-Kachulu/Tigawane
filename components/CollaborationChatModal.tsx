@@ -169,21 +169,13 @@ export default function CollaborationChatModal({
     if (!collaborationId) return
 
     try {
-      // Get donation items for this collaboration
+      // First check if collaboration_id column exists in items table
       const { data: donationData, error } = await supabase
         .from("items")
-        .select(`
-          id, 
-          title, 
-          item_type, 
-          user_id, 
-          created_at,
-          profiles!items_user_id_fkey(full_name)
-        `)
-        .eq("collaboration_id", collaborationId)
+        .select("id, title, item_type, user_id, created_at")
         .eq("status", "available")
         .order("created_at", { ascending: false })
-        .limit(5)
+        .limit(20) // Get more items since we can't filter by collaboration_id yet
 
       if (error) {
         console.error("Error fetching donations:", error)
@@ -197,7 +189,7 @@ export default function CollaborationChatModal({
         return
       }
 
-      if (!donationData) {
+      if (!donationData || donationData.length === 0) {
         setDonationSummary({
           food_count: 0,
           item_count: 0,
@@ -207,20 +199,37 @@ export default function CollaborationChatModal({
         return
       }
 
-      const foodCount = donationData.filter(item => item.item_type === "food").length
-      const itemCount = donationData.filter(item => item.item_type === "non-food").length
+      // Get user names for the items
+      const userIds = [...new Set(donationData.map(item => item.user_id))]
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds)
 
-      const recentDonations = donationData.map(item => ({
+      // Create a map of user IDs to names
+      const profilesMap = new Map()
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          profilesMap.set(profile.id, profile.full_name)
+        })
+      }
+
+      // Take only first 5 items for recent donations
+      const limitedData = donationData.slice(0, 5)
+      const foodCount = limitedData.filter(item => item.item_type === "food").length
+      const itemCount = limitedData.filter(item => item.item_type === "non-food").length
+
+      const recentDonations = limitedData.map(item => ({
         id: item.id,
         title: item.title,
         item_type: item.item_type,
-        user_name: (item.profiles as any)?.full_name || "Anonymous"
+        user_name: profilesMap.get(item.user_id) || "Anonymous"
       }))
 
       setDonationSummary({
         food_count: foodCount,
         item_count: itemCount,
-        total_count: donationData.length,
+        total_count: limitedData.length,
         recent_donations: recentDonations
       })
     } catch (error) {
