@@ -142,27 +142,69 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-gradient-to-r from-green-600 via-green-500 to-emerald-500 shadow-lg border-b border-green-400/20 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl sm:text-3xl">🤝</span>
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700">Tigawane</h1>
+            {/* Logo Section with Animation */}
+            <div className="flex items-center gap-3 group cursor-pointer" onClick={handleGoHome}>
+              <div className="relative">
+                <span className="text-2xl sm:text-3xl transform group-hover:scale-110 transition-transform duration-300 filter drop-shadow-sm">
+                  🤝
+                </span>
+                <div className="absolute -inset-2 bg-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white drop-shadow-sm group-hover:text-green-50 transition-colors duration-300">
+                  Tigawane
+                </h1>
+                <p className="text-xs text-green-100 hidden sm:block font-medium">
+                  Share • Connect • Care
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <NotificationCenter onOpenChat={handleOpenChat} onNavigateToMyItems={handleNavigateToMyItems} />
-              <Button variant="outline" onClick={handleGoHome} className="flex items-center gap-2" size="sm">
+
+            {/* Navigation Actions */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Welcome Message */}
+              <div className="hidden md:flex flex-col items-end mr-2">
+                <span className="text-xs text-green-100 font-medium">Welcome back</span>
+                <span className="text-sm text-white font-semibold truncate max-w-32">
+                  {user?.email?.split('@')[0] || 'User'}
+                </span>
+              </div>
+
+              {/* Notification Center with Enhanced Styling */}
+              <div className="relative">
+                <NotificationCenter onOpenChat={handleOpenChat} onNavigateToMyItems={handleNavigateToMyItems} />
+              </div>
+
+              {/* Home Button */}
+              <Button 
+                variant="outline" 
+                onClick={handleGoHome} 
+                className="flex items-center gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:text-green-50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105" 
+                size="sm"
+              >
                 <Home className="h-4 w-4" />
-                <span className="hidden sm:inline">Home</span>
+                <span className="hidden sm:inline font-medium">Home</span>
               </Button>
 
-              <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2" size="sm">
+              {/* Sign Out Button */}
+              <Button 
+                variant="outline" 
+                onClick={handleSignOut} 
+                className="flex items-center gap-2 bg-red-500/20 border-red-300/30 text-white hover:bg-red-500/30 hover:border-red-300/50 hover:text-red-50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105" 
+                size="sm"
+              >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign Out</span>
+                <span className="hidden sm:inline font-medium">Sign Out</span>
               </Button>
             </div>
           </div>
         </div>
+
+        {/* Subtle Bottom Glow Effect */}
+        <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
