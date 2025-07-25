@@ -152,53 +152,71 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
           <div className="text-gray-400 text-sm sm:text-base mt-2">Check back later or be the first to share!</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="overflow-hidden hover:shadow-md transition-shadow duration-200"
+              className="group overflow-hidden hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200"
             >
               {item.image_url && (
-                <div className="relative h-32 w-full overflow-hidden rounded-t-lg">
+                <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
                   <Image 
                     src={item.image_url || "/placeholder.svg"} 
                     alt={item.title} 
                     fill 
-                    className="object-cover object-center" 
+                    className="object-cover object-center group-hover:scale-110 transition-transform duration-300" 
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 </div>
               )}
-              <CardHeader className="p-3 pb-2">
+              <CardHeader className="p-4 pb-3">
                 <div className="flex justify-between items-start gap-2">
-                  <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">{item.title}</CardTitle>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs shrink-0">
+                  <div className="flex-1 relative group">
+                    <CardTitle className="text-base font-semibold line-clamp-2 leading-tight group-hover:line-clamp-none">
+                      {item.title}
+                    </CardTitle>
+                    <div className="absolute hidden group-hover:block bg-black text-white text-sm p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
+                      {item.title}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-sm shrink-0">
                     {item.category}
                   </Badge>
                 </div>
                 {item.description && (
-                  <CardDescription className="line-clamp-2 text-xs leading-tight">
-                    {item.description}
-                  </CardDescription>
+                  <div className="relative group">
+                    <CardDescription className="line-clamp-2 text-sm leading-tight group-hover:line-clamp-none">
+                      {item.description}
+                    </CardDescription>
+                    <div className="absolute hidden group-hover:block bg-black text-white text-sm p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
+                      {item.description}
+                    </div>
+                  </div>
                 )}
               </CardHeader>
-              <CardContent className="p-3 pt-0 space-y-2">
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{item.pickup_location}</span>
+              <CardContent className="p-4 pt-0 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600 relative group">
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
+                  <div className="absolute hidden group-hover:block bg-black text-white text-sm p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
+                    {item.pickup_location}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <User className="h-3 w-3 shrink-0" />
-                  <span className="truncate">By {item.owner_name || "Anonymous"}</span>
+                <div className="flex items-center gap-2 text-sm text-gray-600 relative group">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="truncate group-hover:overflow-visible">By {item.owner_name || "Anonymous"}</span>
+                  <div className="absolute hidden group-hover:block bg-black text-white text-sm p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
+                    By {item.owner_name || "Anonymous"}
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-medium truncate">{item.quantity}</span>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium">{item.quantity}</span>
                   {item.expiry_date && (
                     <div className="flex items-center gap-1 text-orange-600 shrink-0">
-                      <Clock className="h-3 w-3" />
-                      <span className="text-xs">{new Date(item.expiry_date).toLocaleDateString()}</span>
+                      <Clock className="h-4 w-4" />
+                      <span>{new Date(item.expiry_date).toLocaleDateString()}</span>
                     </div>
                   )}
                 </div>
@@ -219,7 +237,7 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
                       });
                     }, 2000);
                   }} 
-                  className="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-1.5 h-auto disabled:opacity-50"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 h-auto disabled:opacity-50 transform hover:scale-105 transition-all duration-200"
                   size="sm"
                   disabled={requestingItems.has(item.id)}
                 >

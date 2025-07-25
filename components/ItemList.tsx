@@ -287,21 +287,28 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-md transition-shadow duration-200">
+              <Card key={item.id} className="group hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200">
                 {item.image_url && (
-                  <div className="relative h-24 w-full overflow-hidden rounded-t-lg">
+                  <div className="relative h-40 w-full overflow-hidden rounded-t-lg">
                     <img
                       src={item.image_url}
                       alt={item.title}
-                      className="object-cover object-center w-full h-full"
+                      className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
                 )}
-                <CardHeader className="p-2 pb-1">
-                  <div className="flex justify-between items-start gap-1">
-                    <CardTitle className="text-xs font-semibold line-clamp-2 leading-tight">{item.title}</CardTitle>
+                <CardHeader className="p-3 pb-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 relative group">
+                      <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight group-hover:line-clamp-none">
+                        {item.title}
+                      </CardTitle>
+                      <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
+                        {item.title}
+                      </div>
+                    </div>
                     <Badge 
                       variant={item.status === 'available' ? 'default' : 'secondary'}
                       className={`text-xs shrink-0 ${
@@ -317,10 +324,17 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </Badge>
                   </div>
                   {item.description && (
-                    <p className="text-gray-600 text-xs line-clamp-1 leading-tight">{item.description}</p>
+                    <div className="relative group">
+                      <p className="text-gray-600 text-sm line-clamp-2 leading-tight group-hover:line-clamp-none">
+                        {item.description}
+                      </p>
+                      <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
+                        {item.description}
+                      </div>
+                    </div>
                   )}
                 </CardHeader>
-                <CardContent className="p-2 pt-0 space-y-1.5">
+                <CardContent className="p-3 pt-0 space-y-2">
                   <div className="flex flex-wrap gap-1">
                     <Badge variant="outline" className="text-xs">{item.category}</Badge>
                     <Badge variant="outline" className="text-xs">{item.quantity}</Badge>
@@ -328,22 +342,30 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   </div>
 
                   {item.expiry_date && (
-                    <div className="flex items-center gap-1 text-xs text-gray-600">
-                      <CalendarDays className="h-3 w-3" />
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <CalendarDays className="h-4 w-4" />
                       <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{item.pickup_location}</span>
+                  <div className="flex items-center gap-1 text-sm text-gray-600 relative group">
+                    <MapPin className="h-4 w-4 shrink-0" />
+                    <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
+                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
+                      {item.pickup_location}
+                    </div>
                   </div>
 
-                  <div className="text-xs text-gray-500 truncate">
-                    By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
+                  <div className="text-sm text-gray-500 relative group">
+                    <span className="truncate block group-hover:overflow-visible">
+                      By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
+                    </span>
+                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-nowrap">
+                      By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
+                    </div>
                   </div>
 
-                  <div className="flex gap-1 pt-1">
+                  <div className="flex gap-1 pt-2">
                     {user && user.id !== item.user_id && item.status === 'available' && (
                       <Button 
                         onClick={(e) => {
@@ -361,11 +383,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                             });
                           }, 2000);
                         }}
-                        className="flex-1 text-xs py-1.5 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                        className="flex-1 text-sm py-2 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transform hover:scale-105 transition-all duration-200"
                         size="sm"
                         disabled={requestingItems.has(item.id)}
                       >
-                        <Plus className="h-3 w-3 mr-1" />
+                        <Plus className="h-4 w-4 mr-1" />
                         {requestingItems.has(item.id) ? "Requesting..." : "Request"}
                       </Button>
                     )}
@@ -376,9 +398,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           onClick={() => setEditingItem(item)}
                           variant="outline"
                           size="sm"
-                          className="flex-1 text-xs py-1.5 h-auto"
+                          className="flex-1 text-sm py-2 h-auto hover:scale-105 transition-all duration-200"
                         >
-                          <Edit className="h-3 w-3 mr-1" />
+                          <Edit className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
                         <Button 
@@ -389,9 +411,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           }}
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 text-xs py-1.5 h-auto px-2"
+                          className="text-red-600 hover:text-red-700 text-sm py-2 h-auto px-3 hover:scale-105 transition-all duration-200"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </>
                     )}

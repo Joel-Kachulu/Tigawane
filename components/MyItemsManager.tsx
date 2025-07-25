@@ -271,75 +271,85 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="overflow-hidden" 
-              clickable={true}
+              className="group overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200" 
               onClick={() => handleEditItem(item)}
             >
               {item.image_url && (
-                <div className="relative h-48 w-full">
+                <div className="relative h-56 w-full">
                   <Image
                     src={item.image_url || "/placeholder.svg"}
                     alt={item.title}
                     fill
-                    className="object-cover"
+                    className="object-cover group-hover:scale-110 transition-transform duration-300"
                     loading="lazy"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 </div>
               )}
-              <CardHeader>
+              <CardHeader className="p-5">
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-base sm:text-lg lg:text-xl flex items-center gap-2">
-                    {item.title}
-                    {requestCounts[item.id] > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs sm:text-sm font-semibold bg-yellow-200 text-yellow-800">
-                        {requestCounts[item.id]} Request{requestCounts[item.id] > 1 ? "s" : ""}
-                      </span>
-                    )}
-                  </CardTitle>
-                  <div className="flex flex-col gap-1">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs sm:text-sm">
+                  <div className="flex-1 relative group">
+                    <CardTitle className="text-lg font-bold flex items-center gap-2 line-clamp-2 group-hover:line-clamp-none">
+                      {item.title}
+                      {requestCounts[item.id] > 0 && (
+                        <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-sm font-semibold bg-yellow-200 text-yellow-800 animate-pulse">
+                          {requestCounts[item.id]} Request{requestCounts[item.id] > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </CardTitle>
+                    <div className="absolute hidden group-hover:block bg-black text-white text-sm p-3 rounded shadow-lg z-10 mt-2 whitespace-normal max-w-sm">
+                      {item.title}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-sm">
                       {item.category}
                     </Badge>
                     {getStatusBadge(item.status)}
                   </div>
                 </div>
                 <div className="relative group">
-                  <CardDescription className="line-clamp-2 text-sm sm:text-base group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                  <CardDescription className="line-clamp-2 text-base leading-relaxed group-hover:line-clamp-none">
                     {item.description}
                   </CardDescription>
+                  <div className="absolute hidden group-hover:block bg-black text-white text-sm p-3 rounded shadow-lg z-10 mt-2 whitespace-normal max-w-sm">
+                    {item.description}
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
-                  <MapPin className="h-4 w-4" />
-                  <span>{item.pickup_location}</span>
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-center gap-2 text-base text-gray-600 relative group">
+                  <MapPin className="h-5 w-5" />
+                  <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
+                  <div className="absolute hidden group-hover:block bg-black text-white text-sm p-2 rounded shadow-lg z-10 mt-8 whitespace-nowrap">
+                    {item.pickup_location}
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center text-sm sm:text-base">
+                <div className="flex justify-between items-center text-base">
                   <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
+                    <Package className="h-5 w-5" />
                     <span className="font-medium">{item.quantity}</span>
                   </div>
                   {item.condition && (
-                    <Badge variant="outline" className="text-xs sm:text-sm">
+                    <Badge variant="outline" className="text-sm">
                       {item.condition}
                     </Badge>
                   )}
                 </div>
 
                 {item.expiry_date && (
-                  <div className="flex items-center gap-1 text-orange-600 text-sm sm:text-base">
-                    <Clock className="h-4 w-4" />
+                  <div className="flex items-center gap-2 text-orange-600 text-base">
+                    <Clock className="h-5 w-5" />
                     <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-3">
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -347,7 +357,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                     }}
                     variant="outline"
                     size="sm"
-                    className="flex-1 flex items-center gap-2 text-xs sm:text-sm"
+                    className="flex-1 flex items-center gap-2 text-sm py-2.5 hover:scale-105 transition-all duration-200"
                   >
                     <Edit className="h-4 w-4" />
                     Edit
@@ -359,7 +369,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                     }}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-xs sm:text-sm"
+                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2.5 hover:scale-105 transition-all duration-200"
                     disabled={deleting === item.id}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -370,7 +380,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                       onClick={e => { e.stopPropagation(); handleMarkAsShared(item); }}
                       variant="outline"
                       size="sm"
-                      className="flex items-center gap-2 text-green-700 border-green-400 hover:bg-green-50 text-xs sm:text-sm"
+                      className="flex items-center gap-2 text-green-700 border-green-400 hover:bg-green-50 text-sm py-2.5 hover:scale-105 transition-all duration-200"
                       disabled={markingShared === item.id}
                     >
                       <CheckCircle className="h-4 w-4" />
