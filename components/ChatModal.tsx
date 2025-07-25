@@ -159,71 +159,50 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
     }, 1000)
   }, [isTyping])
 
-  const sendMessage = useCallback(async () => {
-    if (!user || !claimId || !newMessage.trim() || sending) return
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !claimId || !user) return
 
     const messageText = newMessage.trim()
-    setNewMessage("")
-    setSending(true)
+    const tempId = `temp-${Date.now()}`
 
+    // Add message immediately to UI for instant feedback
+    const tempMessage = {
+      id: tempId,
+      claim_id: claimId,
+      sender_id: user.id,
+      message: messageText,
+      created_at: new Date().toISOString(),
+      sender_name: "You"
+    }
+
+    setMessages(prev => [...prev, tempMessage])
+    setNewMessage("")
+    setTimeout(scrollToBottom, 50)
+
+    setSending(true)
     try {
-      const { error } = await supabase.from("messages").insert({
+      const { data, error } = await supabase.from("messages").insert({
         claim_id: claimId,
         sender_id: user.id,
         message: messageText,
-      })
+      }).select().single()
 
       if (error) throw error
 
-      // Fetch claim to get the other user
-      const { data: claim, error: claimError } = await supabase
-        .from("claims")
-        .select("claimer_id, owner_id")
-        .eq("id", claimId)
-        .single()
-      if (!claimError && claim) {
-        const recipientId = claim.claimer_id === user.id ? claim.owner_id : claim.claimer_id
-        if (recipientId !== user.id) {
-          // Fetch sender's name
-          const { data: senderProfile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", user.id)
-            .single()
-          const senderName = senderProfile?.full_name || "User"
-          // Insert notification for the other user
-          await supabase.from("notifications").insert({
-            user_id: recipientId,
-            type: "message",
-            title: `New message from ${senderName}`,
-            message: messageText.length > 80 ? messageText.slice(0, 80) + "..." : messageText,
-            related_claim_id: claimId,
-            is_read: false,
-          })
-        }
-      }
-
-      setIsTyping(false)
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+      // Replace temp message with real one
+      setMessages(prev => prev.map(msg =>
+        msg.id === tempId ? { ...data, sender_name: "You" } : msg
+      ))
     } catch (error: any) {
       console.error("Error sending message:", error)
-      setNewMessage(messageText)
-      
-      // Better error handling
-      const errorMessage = error?.message || error?.toString() || "Unknown error occurred"
-      alert(`Error sending message: ${errorMessage}`)
-      
-      // Log more details for debugging
-      console.error("Full error details:", {
-        error,
-        claimId,
-        userId: user?.id,
-        messageText
-      })
+      // Remove temp message on error
+      setMessages(prev => prev.filter(msg => msg.id !== tempId))
+      alert(`Failed to send message: ${error.message}`)
+      setNewMessage(messageText) // Restore message text
     } finally {
       setSending(false)
     }
-  }, [user, claimId, newMessage, sending])
+  }
 
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {

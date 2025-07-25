@@ -60,9 +60,21 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       {/* Header */}
       <header className="w-full bg-white/90 shadow-sm py-4 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-green-700 text-2xl font-bold">
-          <span className="text-3xl">🤝</span>
-          <span>Tigawane</span>
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="relative">
+            <span className="text-2xl sm:text-3xl transform group-hover:scale-110 transition-transform duration-300 filter drop-shadow-sm">
+              🤝
+            </span>
+            <div className="absolute -inset-2 bg-green-600/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700 drop-shadow-sm group-hover:text-green-800 transition-colors duration-300">
+              Tigawane
+            </h1>
+            <p className="text-xs text-green-600 hidden sm:block font-medium">
+              Share • Connect • Care
+            </p>
+          </div>
         </div>
         {/* Placeholder for future nav/CTAs */}
         <div />
