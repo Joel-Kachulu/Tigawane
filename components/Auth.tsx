@@ -27,10 +27,13 @@ export default function Auth() {
     setLoading(true)
 
     try {
+      console.log("Attempting to sign up user:", email)
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: undefined, // Disable email confirmation redirect
           data: {
             full_name: fullName,
             phone,
@@ -40,23 +43,62 @@ export default function Auth() {
       })
 
       if (error) {
+        console.error("Supabase signup error:", error)
         throw error
       }
 
-      // Sign out the user after successful signup
-      await supabase.auth.signOut()
+      console.log("Signup response:", data)
 
-      alert("Account created successfully! Please sign in with your email and password.")
+      // Check if user was created successfully
+      if (data.user) {
+        console.log("User created successfully:", data.user.id)
+        
+        // Wait a moment for the trigger to create the profile
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        // Verify profile was created
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single()
+        
+        if (profileError) {
+          console.error("Profile creation error:", profileError)
+          // Try to create profile manually if trigger failed
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email || email,
+              full_name: fullName,
+              phone,
+              location,
+            })
+          
+          if (insertError) {
+            console.error("Manual profile creation failed:", insertError)
+          } else {
+            console.log("Profile created manually")
+          }
+        } else {
+          console.log("Profile created by trigger:", profile)
+        }
 
-      // Reset form and switch to sign in tab
-      setEmail("")
-      setPassword("")
-      setFullName("")
-      setPhone("")
-      setLocation("")
-      
-      // Switch to sign in tab
-      setActiveTab("signin")
+        alert("Account created successfully! Please sign in with your email and password.")
+
+        // Reset form and switch to sign in tab
+        setEmail("")
+        setPassword("")
+        setFullName("")
+        setPhone("")
+        setLocation("")
+        
+        // Switch to sign in tab
+        setActiveTab("signin")
+      } else {
+        throw new Error("User creation failed - no user data returned")
+      }
     } catch (error: any) {
       console.error("Sign up error:", error)
       alert(error.message || "Error creating account. Please try again.")
