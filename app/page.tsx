@@ -155,7 +155,7 @@ function AppContent() {
                 <Home className="h-4 w-4" />
                 <span className="hidden sm:inline">Home</span>
               </Button>
-        
+
               <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2" size="sm">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -210,7 +210,7 @@ function AppContent() {
                       <span className="text-xs font-medium">Share</span>
                       <ChevronDown className={`h-4 w-4 transition-transform ${shareDropdownOpen ? 'rotate-180' : ''}`} />
                     </Button>
-                    
+
                     {shareDropdownOpen && (
                       <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-50">
                         <div className="flex flex-col gap-2">
@@ -325,7 +325,7 @@ function AppContent() {
                 <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Available Food</h2>
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find food shared by your community</p>
               </div>
-              <ItemList key={`food-${refreshTrigger}`} itemType="food" onClaimItem={handleClaimItem} />
+              <ItemList key={`food-${refreshTrigger}`} itemType="food" collaborationId={null} onClaimItem={handleClaimItem} />
             </div>
           </TabsContent>
 
@@ -335,7 +335,7 @@ function AppContent() {
                 <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Available Items</h2>
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find clothes, shoes, and household items</p>
               </div>
-              <ItemList key={`items-${refreshTrigger}`} itemType="non-food" onClaimItem={handleClaimItem} />
+              <ItemList key={`items-${refreshTrigger}`} itemType="non-food" collaborationId={null} onClaimItem={handleClaimItem} />
             </div>
           </TabsContent>
 

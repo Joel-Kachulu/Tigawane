@@ -31,8 +31,39 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     pickup_location: "",
     area: "",
     is_anonymous: false,
+    collaboration_id: null as string | null,
   })
+  const [collaborations, setCollaborations] = useState<any[]>([])
+  const [loadingCollaborations, setLoadingCollaborations] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
+
+  // Fetch collaborations on component mount
+  useEffect(() => {
+    const fetchCollaborations = async () => {
+      setLoadingCollaborations(true)
+      try {
+        const { data, error } = await supabase
+          .from("collaboration_requests")
+          .select("id, title, status")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+
+        if (error) {
+          console.warn("Could not fetch collaborations:", error)
+          setCollaborations([])
+        } else {
+          setCollaborations(data || [])
+        }
+      } catch (error) {
+        console.warn("Error fetching collaborations:", error)
+        setCollaborations([])
+      } finally {
+        setLoadingCollaborations(false)
+      }
+    }
+
+    fetchCollaborations()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,6 +145,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         pickup_location: formData.pickup_location.trim(),
         user_id: user.id,
         status: "available", // ✅ Add default status
+        collaboration_id: formData.collaboration_id, // ✅ Add collaboration_id
         // Optional fields
         image_url: imageUrl,
         expiry_date: itemType === "food" && formData.expiry_date ? formData.expiry_date : null,
@@ -145,6 +177,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         pickup_location: "",
         area: "",
         is_anonymous: false,
+        collaboration_id: null,
       })
       setImageFile(null)
 
@@ -228,6 +261,35 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="collaboration">Donation Target</Label>
+            <Select
+              value={formData.collaboration_id || "public"}
+              onValueChange={(value) => 
+                setFormData({ 
+                  ...formData, 
+                  collaboration_id: value === "public" ? null : value 
+                })
+              }
+              disabled={loading || loadingCollaborations}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select donation target" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">Public Donation</SelectItem>
+                {collaborations.map((collaboration) => (
+                  <SelectItem key={collaboration.id} value={collaboration.id}>
+                    {collaboration.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {loadingCollaborations && (
+              <p className="text-sm text-gray-500 mt-1">Loading collaborations...</p>
+            )}
           </div>
 
           <div>
