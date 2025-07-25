@@ -127,6 +127,14 @@ export default function NotificationCenter({ onOpenChat, onNavigateToMyItems }: 
             const newNotification = payload.new as Notification
             setNotifications((prev) => [newNotification, ...prev])
             setUnreadCount((prev) => prev + 1)
+            
+            // Show a browser notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(newNotification.title, {
+                body: newNotification.message,
+                icon: '/placeholder-logo.png'
+              })
+            }
           },
         )
         .on(
