@@ -1,38 +1,65 @@
-
-"use client"
+"use client";
 
 import type React from "react"
-import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/contexts/AuthContext"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Camera, Package, MapPin, Heart, ArrowLeft, ArrowRight, CheckCircle, Sparkles, Users, Globe } from "lucide-react"
-import Image from "next/image"
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Camera,
+  Package,
+  MapPin,
+  Heart,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  Sparkles,
+  Users,
+  Globe,
+} from "lucide-react";
+import Image from "next/image";
 
 interface AddItemProps {
-  itemType: "food" | "non-food"
-  onItemAdded: () => void
+  itemType: "food" | "non-food";
+  onItemAdded: () => void;
 }
 
 const STEPS = [
   { id: 1, title: "Photo", icon: Camera, description: "Show your item" },
-  { id: 2, title: "Details", icon: Package, description: "What are you sharing?" },
+  {
+    id: 2,
+    title: "Details",
+    icon: Package,
+    description: "What are you sharing?",
+  },
   { id: 3, title: "Location", icon: MapPin, description: "Where to collect" },
-  { id: 4, title: "Impact", icon: Heart, description: "Choose destination" }
-]
+  { id: 4, title: "Impact", icon: Heart, description: "Choose destination" },
+];
 
 export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
-  const { user } = useAuth()
-  const [currentStep, setCurrentStep] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showSuccess, setShowSuccess] = useState(false)
+  const { user } = useAuth();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -44,57 +71,57 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     area: "",
     is_anonymous: false,
     collaboration_id: null as string | null,
-  })
-  const [collaborations, setCollaborations] = useState<any[]>([])
-  const [loadingCollaborations, setLoadingCollaborations] = useState(false)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  });
+  const [collaborations, setCollaborations] = useState<any[]>([]);
+  const [loadingCollaborations, setLoadingCollaborations] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Fetch collaborations on component mount
   useEffect(() => {
     const fetchCollaborations = async () => {
-      setLoadingCollaborations(true)
+      setLoadingCollaborations(true);
       try {
         const { data, error } = await supabase
           .from("collaboration_requests")
           .select("id, title, status")
           .eq("status", "active")
-          .order("created_at", { ascending: false })
+          .order("created_at", { ascending: false });
 
         if (error) {
-          console.warn("Could not fetch collaborations:", error)
-          setCollaborations([])
+          console.warn("Could not fetch collaborations:", error);
+          setCollaborations([]);
         } else {
-          setCollaborations(data || [])
+          setCollaborations(data || []);
         }
       } catch (error) {
-        console.warn("Error fetching collaborations:", error)
-        setCollaborations([])
+        console.warn("Error fetching collaborations:", error);
+        setCollaborations([]);
       } finally {
-        setLoadingCollaborations(false)
+        setLoadingCollaborations(false);
       }
-    }
+    };
 
-    fetchCollaborations()
-  }, [])
+    fetchCollaborations();
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file)
-      const reader = new FileReader()
+      setImageFile(file);
+      const reader = new FileReader();
       reader.onload = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, string> = {
       // Food categories
       fruits: "🍎",
-      vegetables: "🥕", 
+      vegetables: "🥕",
       grains: "🌾",
       dairy: "🥛",
       meat: "🍖",
@@ -107,10 +134,10 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
       books: "📚",
       toys: "🧸",
       "baby-items": "🍼",
-      other: "📦"
-    }
-    return icons[category] || "📦"
-  }
+      other: "📦",
+    };
+    return icons[category] || "📦";
+  };
 
   const getCategories = () => {
     if (itemType === "food") {
@@ -121,8 +148,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         { value: "dairy", label: "Dairy Products", icon: "🥛" },
         { value: "meat", label: "Meat & Fish", icon: "🍖" },
         { value: "prepared", label: "Prepared Food", icon: "🍽️" },
-        { value: "other", label: "Other Food", icon: "🥗" }
-      ]
+        { value: "other", label: "Other Food", icon: "🥗" },
+      ];
     } else {
       return [
         { value: "clothing", label: "Clothing", icon: "👕" },
@@ -132,96 +159,121 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         { value: "books", label: "Books", icon: "📚" },
         { value: "toys", label: "Toys & Games", icon: "🧸" },
         { value: "baby-items", label: "Baby Items", icon: "🍼" },
-        { value: "other", label: "Other Items", icon: "📦" }
-      ]
+        { value: "other", label: "Other Items", icon: "📦" },
+      ];
     }
-  }
+  };
 
   const conditions = [
     { value: "new", label: "Brand New", description: "Never used" },
-    { value: "excellent", label: "Excellent", description: "Like new condition" },
+    {
+      value: "excellent",
+      label: "Excellent",
+      description: "Like new condition",
+    },
     { value: "good", label: "Good", description: "Minor wear" },
     { value: "fair", label: "Fair", description: "Some wear but functional" },
-    { value: "needs-repair", label: "Needs Repair", description: "Fixable issues" },
-    { value: "old", label: "Old", description: "Well-used but working" }
-  ]
+    {
+      value: "needs-repair",
+      label: "Needs Repair",
+      description: "Fixable issues",
+    },
+    { value: "old", label: "Old", description: "Well-used but working" },
+  ];
 
   const areaOptions = [
-    "area 18", "area 25", "area 23", "area 43", "area 30", 
-    "area 15", "area 14", "area 49", "Chilinde", "Kawale"
-  ]
+    "area 18",
+    "area 25",
+    "area 23",
+    "area 43",
+    "area 30",
+    "area 15",
+    "area 14",
+    "area 49",
+    "Chilinde",
+    "Kawale",
+  ];
 
   const canProceedToNext = () => {
     switch (currentStep) {
       case 1:
-        return true // Image is optional but encouraged
+        return true; // Image is optional but encouraged
       case 2:
-        return formData.title.trim() && formData.category && formData.quantity.trim() && 
-               (itemType === "food" || formData.condition)
+        return (
+          formData.title.trim() &&
+          formData.category &&
+          formData.quantity.trim() &&
+          (itemType === "food" || formData.condition)
+        );
       case 3:
-        return formData.pickup_location.trim() && formData.area
+        return formData.pickup_location.trim() && formData.area;
       case 4:
-        return true // Impact step has default values
+        return true; // Impact step has default values
       default:
-        return false
+        return false;
     }
-  }
+  };
 
   const handleNext = () => {
     if (canProceedToNext() && currentStep < 4) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(currentStep + 1);
     }
-  }
+  };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep(currentStep - 1);
     }
-  }
+  };
 
   const handleSubmit = async () => {
-    setError(null)
+    setError(null);
 
     if (!user) {
-      setError("Please sign in to share items")
-      return
+      setError("Please sign in to share items");
+      return;
     }
 
     // Final validation
-    if (!formData.title.trim() || !formData.category || !formData.quantity.trim() || 
-        !formData.pickup_location.trim() || !formData.area) {
-      setError("Please fill in all required fields")
-      return
-    }
-    
-    if (itemType === "non-food" && !formData.condition) {
-      setError("Please select condition for non-food items")
-      return
+    if (
+      !formData.title.trim() ||
+      !formData.category ||
+      !formData.quantity.trim() ||
+      !formData.pickup_location.trim() ||
+      !formData.area
+    ) {
+      setError("Please fill in all required fields");
+      return;
     }
 
-    setLoading(true)
+    if (itemType === "non-food" && !formData.condition) {
+      setError("Please select condition for non-food items");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      let imageUrl = null
+      let imageUrl = null;
 
       // Upload image if provided
       if (imageFile) {
-        const fileExt = imageFile.name.split(".").pop()
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`
+        const fileExt = imageFile.name.split(".").pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
         try {
           const { error: uploadError } = await supabase.storage
             .from("item-images")
-            .upload(fileName, imageFile)
+            .upload(fileName, imageFile);
 
           if (!uploadError) {
-            const { data: { publicUrl } } = supabase.storage
-              .from("item-images")
-              .getPublicUrl(fileName)
-            imageUrl = publicUrl
+            const {
+              data: { publicUrl },
+            } = supabase.storage.from("item-images").getPublicUrl(fileName);
+            imageUrl = publicUrl;
           }
         } catch (uploadErr) {
-          console.warn("Image upload error:", uploadErr)
+          console.warn("Image upload error:", uploadErr);
         }
       }
 
@@ -237,28 +289,34 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         status: "available",
         collaboration_id: formData.collaboration_id,
         image_url: imageUrl,
-        expiry_date: itemType === "food" && formData.expiry_date ? formData.expiry_date : null,
-        condition: itemType === "non-food" && formData.condition ? formData.condition : null,
+        expiry_date:
+          itemType === "food" && formData.expiry_date
+            ? formData.expiry_date
+            : null,
+        condition:
+          itemType === "non-food" && formData.condition
+            ? formData.condition
+            : null,
         area: formData.area,
         is_anonymous: formData.is_anonymous,
-      }
+      };
 
       const { data, error: insertError } = await supabase
         .from("items")
         .insert(itemData)
-        .select()
+        .select();
 
       if (insertError) {
-        throw insertError
+        throw insertError;
       }
 
       // Show success animation
-      setShowSuccess(true)
-      
+      setShowSuccess(true);
+
       // Wait for animation then reset
       setTimeout(() => {
-        setShowSuccess(false)
-        setCurrentStep(1)
+        setShowSuccess(false);
+        setCurrentStep(1);
         setFormData({
           title: "",
           description: "",
@@ -270,19 +328,18 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
           area: "",
           is_anonymous: false,
           collaboration_id: null,
-        })
-        setImageFile(null)
-        setImagePreview(null)
-        onItemAdded()
-      }, 3000)
-
+        });
+        setImageFile(null);
+        setImagePreview(null);
+        onItemAdded();
+      }, 3000);
     } catch (error: any) {
-      console.error("Error adding item:", error)
-      setError(`Failed to share item: ${error.message}`)
+      console.error("Error adding item:", error);
+      setError(`Failed to share item: ${error.message}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Success animation overlay
   if (showSuccess) {
@@ -298,12 +355,15 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               You've helped someone in your neighborhood!
             </p>
             <p className="text-sm text-green-500">
-              {itemType === "food" ? "Food rescued from waste" : "Item given new life"} ✨
+              {itemType === "food"
+                ? "Food rescued from waste"
+                : "Item given new life"}{" "}
+              ✨
             </p>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -314,11 +374,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
           <h1 className="text-xl font-bold text-gray-900">
             Share {itemType === "food" ? "Food" : "Items"}
           </h1>
-          <div className="text-sm text-gray-500">
-            {currentStep}/4
-          </div>
+          <div className="text-sm text-gray-500">{currentStep}/4</div>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="flex space-x-2">
           {STEPS.map((step, index) => (
@@ -328,8 +386,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 currentStep > step.id
                   ? "bg-green-500"
                   : currentStep === step.id
-                  ? "bg-green-300"
-                  : "bg-gray-200"
+                    ? "bg-green-300"
+                    : "bg-gray-200"
               }`}
             />
           ))}
@@ -339,7 +397,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         <div className="mt-4 text-center">
           <div className="flex items-center justify-center space-x-2 mb-2">
             {React.createElement(STEPS[currentStep - 1].icon, {
-              className: "w-5 h-5 text-green-600"
+              className: "w-5 h-5 text-green-600",
             })}
             <h2 className="text-lg font-semibold text-gray-900">
               {STEPS[currentStep - 1].title}
@@ -365,7 +423,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
             <div className="text-center">
               <h3 className="text-lg font-medium mb-2">Add a photo</h3>
               <p className="text-gray-600 text-sm mb-6">
-                A good photo helps people connect with your {itemType === "food" ? "food" : "item"}
+                A good photo helps people connect with your{" "}
+                {itemType === "food" ? "food" : "item"}
               </p>
             </div>
 
@@ -377,9 +436,13 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 id="image-upload"
               />
-              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                imagePreview ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-50"
-              }`}>
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                  imagePreview
+                    ? "border-green-300 bg-green-50"
+                    : "border-gray-300 bg-gray-50"
+                }`}
+              >
                 {imagePreview ? (
                   <div className="space-y-4">
                     <Image
@@ -395,8 +458,12 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                   <div className="space-y-4">
                     <Camera className="w-12 h-12 text-gray-400 mx-auto" />
                     <div>
-                      <p className="font-medium text-gray-900">Tap to add photo</p>
-                      <p className="text-sm text-gray-500">Optional but recommended</p>
+                      <p className="font-medium text-gray-900">
+                        Tap to add photo
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Optional but recommended
+                      </p>
                     </div>
                   </div>
                 )}
@@ -409,7 +476,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         {currentStep === 2 && (
           <div className="space-y-6 py-6">
             <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">Tell us about your {itemType}</h3>
+              <h3 className="text-lg font-medium mb-2">
+                Tell us about your {itemType}
+              </h3>
               <p className="text-gray-600 text-sm mb-6">
                 Help others understand what you're sharing
               </p>
@@ -423,8 +492,14 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 <Input
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder={itemType === "food" ? "e.g., Fresh tomatoes" : "e.g., Men's running shoes"}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  placeholder={
+                    itemType === "food"
+                      ? "e.g., Fresh tomatoes"
+                      : "e.g., Men's running shoes"
+                  }
                   className="mt-2 text-base h-12"
                 />
               </div>
@@ -436,7 +511,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                     <button
                       key={cat.value}
                       type="button"
-                      onClick={() => setFormData({ ...formData, category: cat.value })}
+                      onClick={() =>
+                        setFormData({ ...formData, category: cat.value })
+                      }
                       className={`p-4 rounded-xl border-2 text-left transition-all ${
                         formData.category === cat.value
                           ? "border-green-500 bg-green-50"
@@ -457,8 +534,14 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 <Input
                   id="quantity"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  placeholder={itemType === "food" ? "e.g., 2 kg, 5 pieces" : "e.g., 1 pair, 3 items"}
+                  onChange={(e) =>
+                    setFormData({ ...formData, quantity: e.target.value })
+                  }
+                  placeholder={
+                    itemType === "food"
+                      ? "e.g., 2 kg, 5 pieces"
+                      : "e.g., 1 pair, 3 items"
+                  }
                   className="mt-2 text-base h-12"
                 />
               </div>
@@ -471,7 +554,12 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                       <button
                         key={condition.value}
                         type="button"
-                        onClick={() => setFormData({ ...formData, condition: condition.value })}
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            condition: condition.value,
+                          })
+                        }
                         className={`w-full p-3 rounded-lg border text-left transition-all ${
                           formData.condition === condition.value
                             ? "border-green-500 bg-green-50"
@@ -479,7 +567,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                         }`}
                       >
                         <div className="font-medium">{condition.label}</div>
-                        <div className="text-sm text-gray-600">{condition.description}</div>
+                        <div className="text-sm text-gray-600">
+                          {condition.description}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -488,14 +578,19 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
               {itemType === "food" && (
                 <div>
-                  <Label htmlFor="expiry_date" className="text-base font-medium">
+                  <Label
+                    htmlFor="expiry_date"
+                    className="text-base font-medium"
+                  >
                     Best before (optional)
                   </Label>
                   <Input
                     id="expiry_date"
                     type="date"
                     value={formData.expiry_date}
-                    onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, expiry_date: e.target.value })
+                    }
                     className="mt-2 text-base h-12"
                   />
                 </div>
@@ -508,7 +603,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Any special notes..."
                   rows={3}
                   className="mt-2 text-base"
@@ -522,7 +619,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         {currentStep === 3 && (
           <div className="space-y-6 py-6">
             <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">Where can people collect?</h3>
+              <h3 className="text-lg font-medium mb-2">
+                Where can people collect?
+              </h3>
               <p className="text-gray-600 text-sm mb-6">
                 Help people find you easily
               </p>
@@ -530,13 +629,21 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="pickup_location" className="text-base font-medium">
+                <Label
+                  htmlFor="pickup_location"
+                  className="text-base font-medium"
+                >
                   Pickup location *
                 </Label>
                 <Input
                   id="pickup_location"
                   value={formData.pickup_location}
-                  onChange={(e) => setFormData({ ...formData, pickup_location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      pickup_location: e.target.value,
+                    })
+                  }
                   placeholder="e.g., Near Area 25 Market"
                   className="mt-2 text-base h-12"
                 />
@@ -546,7 +653,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 <Label className="text-base font-medium">Area/Township *</Label>
                 <Select
                   value={formData.area}
-                  onValueChange={(value) => setFormData({ ...formData, area: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, area: value })
+                  }
                 >
                   <SelectTrigger className="mt-2 text-base h-12">
                     <SelectValue placeholder="Choose your area" />
@@ -566,7 +675,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                   <Switch
                     id="is_anonymous"
                     checked={formData.is_anonymous}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_anonymous: checked })}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, is_anonymous: checked })
+                    }
                   />
                   <Label htmlFor="is_anonymous" className="text-base">
                     Share anonymously
@@ -593,7 +704,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, collaboration_id: null })}
+                onClick={() =>
+                  setFormData({ ...formData, collaboration_id: null })
+                }
                 className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                   !formData.collaboration_id
                     ? "border-green-500 bg-green-50"
@@ -604,7 +717,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                   <Globe className="w-6 h-6 text-blue-500" />
                   <div>
                     <div className="font-medium">Public Donation</div>
-                    <div className="text-sm text-gray-600">Available to everyone in your area</div>
+                    <div className="text-sm text-gray-600">
+                      Available to everyone in your area
+                    </div>
                   </div>
                 </div>
               </button>
@@ -613,7 +728,12 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 <button
                   key={collaboration.id}
                   type="button"
-                  onClick={() => setFormData({ ...formData, collaboration_id: collaboration.id })}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      collaboration_id: collaboration.id,
+                    })
+                  }
                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                     formData.collaboration_id === collaboration.id
                       ? "border-green-500 bg-green-50"
@@ -624,7 +744,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                     <Users className="w-6 h-6 text-purple-500" />
                     <div>
                       <div className="font-medium">{collaboration.title}</div>
-                      <div className="text-sm text-gray-600">Specific cause or community project</div>
+                      <div className="text-sm text-gray-600">
+                        Specific cause or community project
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -647,13 +769,21 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                       />
                     ) : (
                       <div className="w-15 h-15 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <span className="text-2xl">{getCategoryIcon(formData.category)}</span>
+                        <span className="text-2xl">
+                          {getCategoryIcon(formData.category)}
+                        </span>
                       </div>
                     )}
                     <div className="flex-1">
-                      <h5 className="font-medium">{formData.title || "Your item title"}</h5>
-                      <p className="text-sm text-gray-600">{formData.quantity || "Quantity"}</p>
-                      <p className="text-sm text-green-600">📍 {formData.area || "Your area"}</p>
+                      <h5 className="font-medium">
+                        {formData.title || "Your item title"}
+                      </h5>
+                      <p className="text-sm text-gray-600">
+                        {formData.quantity || "Quantity"}
+                      </p>
+                      <p className="text-sm text-green-600">
+                        📍 {formData.area || "Your area"}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -676,7 +806,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
               Back
             </Button>
           )}
-          
+
           {currentStep < 4 ? (
             <Button
               onClick={handleNext}
@@ -710,5 +840,5 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
