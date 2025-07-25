@@ -386,7 +386,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       {/* Modals */}
       {selectedItem && (
         <ClaimFoodModal
-          item={selectedItem}
+          foodItem={{
+            ...selectedItem,
+            owner_name: profiles[selectedItem.user_id]?.full_name
+          }}
           isOpen={!!selectedItem}
           onClose={() => setSelectedItem(null)}
           onClaimed={handleItemClaimed}
