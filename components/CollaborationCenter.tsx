@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, MapPin, Calendar, MessageCircle, AlertCircle } from "lucide-react"
+import { Users, Plus, MapPin, Calendar, MessageCircle, AlertCircle, Package, Utensils, Gift } from "lucide-react"
 
 interface Collaboration {
   id: string
@@ -26,6 +26,17 @@ interface Collaboration {
   creator_name?: string
   participant_count?: number
   is_participant?: boolean
+  donation_preview?: {
+    food_count: number
+    item_count: number
+    total_count: number
+    recent_donations: Array<{
+      id: string
+      title: string
+      item_type: string
+      created_at: string
+    }>
+  }
 }
 
 interface CollaborationCenterProps {
@@ -84,7 +95,7 @@ export default function CollaborationCenter({ onOpenCollaborationChat }: Collabo
         })
       }
 
-      // Get participant counts for each collaboration
+      // Get participant counts and donation data for each collaboration
       const collaborationsWithDetails = await Promise.all(
         collaborationData.map(async (collab) => {
           // Get participant count
@@ -99,11 +110,29 @@ export default function CollaborationCenter({ onOpenCollaborationChat }: Collabo
             isParticipant = participantData.some((p) => p.user_id === user.id)
           }
 
+          // Get donation counts and recent donations
+          const { data: donationData } = await supabase
+            .from("items")
+            .select("id, title, item_type, created_at")
+            .eq("collaboration_id", collab.id)
+            .eq("status", "available")
+            .order("created_at", { ascending: false })
+            .limit(3)
+
+          const foodCount = donationData?.filter(item => item.item_type === "food").length || 0
+          const itemCount = donationData?.filter(item => item.item_type === "non-food").length || 0
+
           return {
             ...collab,
             creator_name: profilesMap.get(collab.creator_id) || "Anonymous",
             participant_count: participantData?.length || 0,
             is_participant: isParticipant,
+            donation_preview: {
+              food_count: foodCount,
+              item_count: itemCount,
+              total_count: donationData?.length || 0,
+              recent_donations: donationData || []
+            }
           }
         }),
       )
@@ -299,36 +328,85 @@ export default function CollaborationCenter({ onOpenCollaborationChat }: Collabo
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {collaborations.map((collab) => (
-          <Card key={collab.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
+          <Card key={collab.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
+            <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{collab.title}</CardTitle>
+                <CardTitle className="text-lg text-green-700">{collab.title}</CardTitle>
                 <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                   <Users className="h-3 w-3 mr-1" />
                   {collab.participant_count}
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-gray-600 text-sm line-clamp-3">{collab.description}</p>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600 text-sm line-clamp-2">{collab.description}</p>
 
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4" />
-                <span>{collab.location}</span>
-              </div>
+              {/* Donation Summary */}
+              {collab.donation_preview && collab.donation_preview.total_count > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-green-800 flex items-center gap-1">
+                      <Gift className="h-4 w-4" />
+                      Available Donations
+                    </h4>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                      {collab.donation_preview.total_count} items
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex gap-4 text-xs text-green-700">
+                    {collab.donation_preview.food_count > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Utensils className="h-3 w-3" />
+                        <span>{collab.donation_preview.food_count} food</span>
+                      </div>
+                    )}
+                    {collab.donation_preview.item_count > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        <span>{collab.donation_preview.item_count} items</span>
+                      </div>
+                    )}
+                  </div>
 
-              {collab.target_date && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  <span>Target: {new Date(collab.target_date).toLocaleDateString()}</span>
+                  {/* Recent Donations Preview */}
+                  {collab.donation_preview.recent_donations.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-green-800">Recent donations:</p>
+                      {collab.donation_preview.recent_donations.slice(0, 2).map((donation) => (
+                        <p key={donation.id} className="text-xs text-green-600 truncate">
+                          • {donation.title}
+                        </p>
+                      ))}
+                      {collab.donation_preview.recent_donations.length > 2 && (
+                        <p className="text-xs text-green-500 italic">
+                          +{collab.donation_preview.recent_donations.length - 2} more...
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="text-sm text-gray-500">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span>{collab.location}</span>
+                </div>
+
+                {collab.target_date && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-4 w-4" />
+                    <span>Target: {new Date(collab.target_date).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-sm text-gray-500 border-t pt-2">
                 Created by {collab.creator_name} • {new Date(collab.created_at).toLocaleDateString()}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 {collab.is_participant ? (
                   <>
                     <Button

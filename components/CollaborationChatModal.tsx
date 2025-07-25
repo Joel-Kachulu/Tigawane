@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send, Users } from "lucide-react"
+import { Send, Users, Package, Utensils, Gift, ExternalLink } from "lucide-react"
 
 interface CollaborationMessage {
   id: string
@@ -33,6 +33,18 @@ interface CollaborationChatModalProps {
   onClose: () => void
 }
 
+interface DonationSummary {
+  food_count: number
+  item_count: number
+  total_count: number
+  recent_donations: Array<{
+    id: string
+    title: string
+    item_type: string
+    user_name?: string
+  }>
+}
+
 export default function CollaborationChatModal({
   collaborationId,
   collaborationTitle,
@@ -42,6 +54,7 @@ export default function CollaborationChatModal({
   const { user } = useAuth()
   const [messages, setMessages] = useState<CollaborationMessage[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
+  const [donationSummary, setDonationSummary] = useState<DonationSummary | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -50,6 +63,7 @@ export default function CollaborationChatModal({
     if (collaborationId && isOpen) {
       fetchMessages()
       fetchParticipants()
+      fetchDonationSummary()
 
       // Subscribe to new messages
       const subscription = supabase
@@ -151,6 +165,62 @@ export default function CollaborationChatModal({
     setParticipants(participantsWithProfiles)
   }
 
+  const fetchDonationSummary = async () => {
+    if (!collaborationId) return
+
+    try {
+      // Get donation items for this collaboration
+      const { data: donationData, error } = await supabase
+        .from("items")
+        .select(`
+          id, 
+          title, 
+          item_type, 
+          user_id, 
+          created_at,
+          profiles!items_user_id_fkey(full_name)
+        `)
+        .eq("collaboration_id", collaborationId)
+        .eq("status", "available")
+        .order("created_at", { ascending: false })
+        .limit(5)
+
+      if (error) {
+        console.error("Error fetching donations:", error)
+        return
+      }
+
+      if (!donationData) {
+        setDonationSummary({
+          food_count: 0,
+          item_count: 0,
+          total_count: 0,
+          recent_donations: []
+        })
+        return
+      }
+
+      const foodCount = donationData.filter(item => item.item_type === "food").length
+      const itemCount = donationData.filter(item => item.item_type === "non-food").length
+
+      const recentDonations = donationData.map(item => ({
+        id: item.id,
+        title: item.title,
+        item_type: item.item_type,
+        user_name: (item.profiles as any)?.full_name || "Anonymous"
+      }))
+
+      setDonationSummary({
+        food_count: foodCount,
+        item_count: itemCount,
+        total_count: donationData.length,
+        recent_donations: recentDonations
+      })
+    } catch (error) {
+      console.error("Error fetching donation summary:", error)
+    }
+  }
+
   const sendMessage = async () => {
     if (!user || !collaborationId || !newMessage.trim()) return
 
@@ -187,7 +257,7 @@ export default function CollaborationChatModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl h-[600px] flex flex-col">
+      <DialogContent className="max-w-2xl h-[700px] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -202,6 +272,69 @@ export default function CollaborationChatModal({
             </span>
           </DialogDescription>
         </DialogHeader>
+
+        {/* Donation Summary Section */}
+        {donationSummary && donationSummary.total_count > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-green-800 flex items-center gap-2">
+                <Gift className="h-4 w-4" />
+                Available Donations
+              </h4>
+              <div className="flex gap-2">
+                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                  {donationSummary.total_count} total
+                </Badge>
+                <a 
+                  href={`/collaborations/${collaborationId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View All
+                </a>
+              </div>
+            </div>
+            
+            <div className="flex gap-4 text-xs text-green-700">
+              {donationSummary.food_count > 0 && (
+                <div className="flex items-center gap-1">
+                  <Utensils className="h-3 w-3" />
+                  <span>{donationSummary.food_count} food items</span>
+                </div>
+              )}
+              {donationSummary.item_count > 0 && (
+                <div className="flex items-center gap-1">
+                  <Package className="h-3 w-3" />
+                  <span>{donationSummary.item_count} other items</span>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Donations */}
+            {donationSummary.recent_donations.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-green-800">Recent donations:</p>
+                <div className="grid grid-cols-1 gap-1 max-h-16 overflow-y-auto">
+                  {donationSummary.recent_donations.slice(0, 3).map((donation) => (
+                    <div key={donation.id} className="flex items-center justify-between text-xs bg-white rounded px-2 py-1">
+                      <span className="text-green-700 truncate">{donation.title}</span>
+                      <span className="text-green-500 text-xs ml-2 flex-shrink-0">
+                        by {donation.user_name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {donationSummary.recent_donations.length > 3 && (
+                  <p className="text-xs text-green-500 italic text-center">
+                    +{donationSummary.recent_donations.length - 3} more donations available
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <ScrollArea className="flex-1 p-4 border rounded" ref={scrollAreaRef}>
           <div className="space-y-4">
