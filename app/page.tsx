@@ -530,7 +530,6 @@ function AppContent() {
           <TabsContent value="browse-food">
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Available Food</h2>
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find food shared by your community</p>
               </div>
               <ItemList key={`food-${refreshTrigger}`} itemType="food" collaborationId={null} onClaimItem={handleClaimItem} />
@@ -540,7 +539,7 @@ function AppContent() {
           <TabsContent value="browse-items">
             <div className="space-y-6">
               <div className="text-center">
-                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Available Items</h2>
+    
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find clothes, shoes, and household items</p>
               </div>
               <ItemList key={`items-${refreshTrigger}`} itemType="non-food" collaborationId={null} onClaimItem={handleClaimItem} />
