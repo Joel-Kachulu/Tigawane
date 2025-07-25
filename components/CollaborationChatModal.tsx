@@ -187,6 +187,13 @@ export default function CollaborationChatModal({
 
       if (error) {
         console.error("Error fetching donations:", error)
+        // Set empty state on error
+        setDonationSummary({
+          food_count: 0,
+          item_count: 0,
+          total_count: 0,
+          recent_donations: []
+        })
         return
       }
 
@@ -218,6 +225,13 @@ export default function CollaborationChatModal({
       })
     } catch (error) {
       console.error("Error fetching donation summary:", error)
+      // Set empty state on catch
+      setDonationSummary({
+        food_count: 0,
+        item_count: 0,
+        total_count: 0,
+        recent_donations: []
+      })
     }
   }
 
@@ -263,13 +277,15 @@ export default function CollaborationChatModal({
             <Users className="h-5 w-5" />
             {collaborationTitle}
           </DialogTitle>
-          <DialogDescription className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">
-              {participants.length} participants
-            </Badge>
-            <span className="text-xs text-gray-500">
-              {participants.map((p) => p.full_name || "Anonymous").join(", ")}
-            </span>
+          <DialogDescription>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                {participants.length} participants
+              </Badge>
+              <span className="text-xs text-gray-500">
+                {participants.map((p) => p.full_name || "Anonymous").join(", ")}
+              </span>
+            </div>
           </DialogDescription>
         </DialogHeader>
 
