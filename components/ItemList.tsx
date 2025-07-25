@@ -1,343 +1,352 @@
+
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import React, { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { MapPin, Clock, User, Package } from "lucide-react"
-import Image from "next/image"
-import EditItemModal from "@/components/EditItemModal"
 import { useAuth } from "@/contexts/AuthContext"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2 } from "lucide-react"
+import ClaimFoodModal from "./ClaimFoodModal"
+import EditItemModal from "./EditItemModal"
 
 interface Item {
   id: string
   title: string
   description: string | null
   category: string
-  item_type: "food" | "non-food"
+  item_type: string
   quantity: string
   condition?: string | null
-  expiry_date: string | null
+  expiry_date?: string | null
   pickup_location: string
   image_url: string | null
+  user_id: string
   status: string
   created_at: string
-  user_id: string
-  owner_name?: string | null
+  collaboration_id?: string | null
+  profiles?: {
+    full_name: string | null
+    location: string | null
+  }
 }
 
 interface ItemListProps {
   itemType: "food" | "non-food"
-  collaborationId?: string | null // null for public items, string for specific collaboration
-  onClaimItem: (item: Item) => void
+  collaborationId?: string | null
 }
 
-export default function ItemList({ itemType, collaborationId, onClaimItem }: ItemListProps) {
+export default function ItemList({ itemType, collaborationId }: ItemListProps) {
+  const { user } = useAuth()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState("all")
-  const [page, setPage] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
-
-  const { user } = useAuth()
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [currentPage, setCurrentPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [profiles, setProfiles] = useState<Record<string, any>>({})
 
-  // Memoize categories to prevent unnecessary re-renders
-  const categories = useMemo(() => {
-    if (itemType === "food") {
-      return ["all", "fruits", "vegetables", "grains", "dairy", "meat", "prepared", "other"]
-    } else {
-      return ["all", "clothing", "shoes", "household", "electronics", "books", "toys", "baby-items", "other"]
-    }
-  }, [itemType])
+  const itemsPerPage = 12
 
-  // Optimized fetch function with manual profile fetching
-  const fetchItems = useCallback(
-    async (pageNum = 0, isLoadMore = false) => {
-      try {
-        setError(null)
-        if (!isLoadMore) setLoading(true)
+  const categories = itemType === "food" 
+    ? ["Fruits", "Vegetables", "Meat", "Dairy", "Bread", "Snacks", "Beverages", "Other"]
+    : ["Clothing", "Electronics", "Furniture", "Books", "Household", "Sports", "Tools", "Other"]
 
-        console.log(`🔍 Fetching ${itemType} items (page ${pageNum})...`)
-
-        // First, fetch items
-        let query = supabase
-          .from("items")
-          .select("*")
-          .eq("item_type", itemType)
-          .in("status", ["available", "requested", "reserved"])
-
-        // Apply collaboration filtering
-        if (collaborationId === null || collaborationId === undefined) {
-          // Show only public donations (collaboration_id is null)
-          query = query.is("collaboration_id", null)
-        } else {
-          // Show only items for specific collaboration
-          query = query.eq("collaboration_id", collaborationId)
-        }
-
-        query = query
-          .order("created_at", { ascending: false })
-          .range(pageNum * 20, (pageNum + 1) * 20 - 1)
-
-        const { data: itemData, error: itemError } = await query;
-
-        if (itemError) {
-          console.error("❌ Error fetching items:", itemError)
-          setError(`Error fetching items: ${itemError.message}`)
-          return
-        }
-
-        console.log(`✅ Successfully fetched ${itemData?.length || 0} ${itemType} items`)
-
-        if (!itemData || itemData.length === 0) {
-          if (isLoadMore) {
-            setHasMore(false)
-          } else {
-            setItems([])
-          }
-          return
-        }
-
-        // Get unique user IDs
-        const userIds = [...new Set(itemData.map((item) => item.user_id))]
-        console.log(`👥 Fetching profiles for ${userIds.length} users...`)
-
-        // Fetch profiles for these users
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds)
-
-        if (profilesError) {
-          console.warn("⚠️ Error fetching profiles:", profilesError)
-          // Continue without profile names if profiles fetch fails
-        }
-
-        console.log(`✅ Successfully fetched ${profilesData?.length || 0} profiles`)
-
-        // Create a map of user_id to profile data
-        const profilesMap = new Map()
-        if (profilesData) {
-          profilesData.forEach((profile) => {
-            profilesMap.set(profile.id, profile)
-          })
-        }
-
-        // Combine items with profile data
-        const itemsWithProfiles = itemData.map((item) => ({
-          ...item,
-          owner_name: profilesMap.get(item.user_id)?.full_name || "Community Member",
-        }))
-
-        if (isLoadMore) {
-          setItems((prev) => [...prev, ...itemsWithProfiles])
-        } else {
-          setItems(itemsWithProfiles)
-        }
-
-        setHasMore(itemData.length === 20)
-        setPage(pageNum)
-      } catch (error: any) {
-        console.error("💥 Unexpected error fetching items:", error)
-        setError(`Unexpected error: ${error.message}`)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [itemType, collaborationId],
-  )
-
-  // Reset and fetch when itemType changes
   useEffect(() => {
-    setPage(0)
-    setHasMore(true)
-    fetchItems(0, false)
-  }, [itemType, collaborationId, fetchItems])
+    fetchItems(true)
+  }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter])
 
-  // Load more items
-  const loadMore = useCallback(() => {
-    if (!loading && hasMore) {
-      fetchItems(page + 1, true)
+  const fetchItems = async (reset = false) => {
+    try {
+      const pageToFetch = reset ? 0 : currentPage
+      console.log(`🔍 Fetching ${itemType} items (page ${pageToFetch})...`)
+
+      let query = supabase
+        .from("items")
+        .select("*")
+        .eq("item_type", itemType)
+        .order("created_at", { ascending: false })
+
+      // Add collaboration filtering
+      if (collaborationId) {
+        query = query.eq("collaboration_id", collaborationId)
+      } else {
+        // If not filtering by collaboration, exclude collaboration items
+        query = query.is("collaboration_id", null)
+      }
+
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      }
+
+      if (categoryFilter !== "all") {
+        query = query.eq("category", categoryFilter)
+      }
+
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter)
+      }
+
+      const { data, error } = await query
+        .range(pageToFetch * itemsPerPage, (pageToFetch + 1) * itemsPerPage - 1)
+
+      if (error) throw error
+
+      console.log(`✅ Successfully fetched ${data?.length || 0} ${itemType} items`)
+
+      if (reset) {
+        setItems(data || [])
+        setCurrentPage(0)
+      } else {
+        setItems(prev => [...prev, ...(data || [])])
+      }
+
+      setHasMore((data?.length || 0) === itemsPerPage)
+
+      // Fetch user profiles for items
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(item => item.user_id))]
+        await fetchProfiles(userIds)
+      }
+    } catch (error) {
+      console.error(`❌ Error fetching ${itemType} items:`, error)
+    } finally {
+      setLoading(false)
     }
-  }, [loading, hasMore, page, fetchItems])
-
-  const getStatusBadge = useCallback((status: string) => {
-    switch (status) {
-      case "available":
-        return <Badge className="bg-green-100 text-green-800 text-xs py-0 h-4">Available</Badge>
-      case "requested":
-        return <Badge className="bg-yellow-100 text-yellow-800 text-xs py-0 h-4">Requested</Badge>
-      case "reserved":
-        return <Badge className="bg-blue-100 text-blue-800 text-xs py-0 h-4">Reserved</Badge>
-      default:
-        return (
-          <Badge variant="secondary" className="text-xs py-0 h-4">
-            {status}
-          </Badge>
-        )
-    }
-  }, [])
-
-  const handleEditItem = useCallback((item: Item) => {
-    setEditingItem(item)
-    setShowEditModal(true)
-  }, [])
-
-  const handleItemUpdated = useCallback(() => {
-    fetchItems(0, false)
-    setShowEditModal(false)
-    setEditingItem(null)
-  }, [fetchItems])
-
-  // Memoize filtered items to prevent unnecessary recalculations
-  const filteredItems = useMemo(() => {
-    return filter === "all" ? items : items.filter((item) => item.category.toLowerCase() === filter)
-  }, [items, filter])
-
-  if (loading && items.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-base sm:text-lg lg:text-xl">Loading available {itemType} items...</div>
-      </div>
-    )
   }
 
-  if (error) {
+  const fetchProfiles = async (userIds: string[]) => {
+    try {
+      console.log(`👥 Fetching profiles for ${userIds.length} users...`)
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, location")
+        .in("id", userIds)
+
+      if (error) throw error
+
+      const profilesMap = (data || []).reduce((acc, profile) => {
+        acc[profile.id] = profile
+        return acc
+      }, {} as Record<string, any>)
+
+      setProfiles(prev => ({ ...prev, ...profilesMap }))
+      console.log(`✅ Successfully fetched ${data?.length || 0} profiles`)
+    } catch (error) {
+      console.error("❌ Error fetching profiles:", error)
+    }
+  }
+
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      setCurrentPage(prev => prev + 1)
+      fetchItems(false)
+    }
+  }
+
+  const handleItemClaimed = () => {
+    fetchItems(true)
+    setSelectedItem(null)
+  }
+
+  const handleItemUpdated = () => {
+    fetchItems(true)
+    setEditingItem(null)
+  }
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!user) return
+
+    try {
+      const { error } = await supabase
+        .from("items")
+        .delete()
+        .eq("id", itemId)
+        .eq("user_id", user.id)
+
+      if (error) throw error
+
+      fetchItems(true)
+    } catch (error) {
+      console.error("❌ Error deleting item:", error)
+      alert("Failed to delete item")
+    }
+  }
+
+  const filteredItems = items
+
+  if (loading && currentPage === 0) {
     return (
-      <div className="flex flex-col justify-center items-center h-64 space-y-4">
-        <div className="text-red-600 text-base sm:text-lg lg:text-xl">Error loading {itemType} items</div>
-        <div className="text-red-500 text-sm sm:text-base max-w-md text-center">{error}</div>
-        <Button onClick={() => fetchItems(0, false)} variant="outline">
-          Try Again
-        </Button>
+      <div className="space-y-4">
+        {[...Array(6)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {categories.map((category) => (
-          <Button
-            key={category}
-            variant={filter === category ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter(category)}
-            className={`text-xs sm:text-sm lg:text-base h-7 sm:h-8 lg:h-9 ${filter === category ? "bg-green-600 hover:bg-green-700" : ""}`}
-          >
-            {category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ")}
-          </Button>
-        ))}
+    <div className="space-y-6">
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder={`Search ${itemType} items...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map(category => (
+              <SelectItem key={category} value={category}>{category}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="available">Available</SelectItem>
+            <SelectItem value="requested">Requested</SelectItem>
+            <SelectItem value="reserved">Reserved</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* Items Grid */}
       {filteredItems.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-500 text-base sm:text-lg lg:text-xl">No {itemType} items available at the moment</div>
-          <div className="text-gray-400 text-sm sm:text-base mt-2">Check back later or be the first to share!</div>
-        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No {itemType} items found
+            </h3>
+            <p className="text-gray-600">
+              {collaborationId 
+                ? "No items have been shared with this collaboration yet."
+                : `No ${itemType} items match your current filters.`
+              }
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((item) => (
-              <Card 
-                key={item.id} 
-                className="overflow-hidden border border-gray-200" 
-                clickable={true}
-                onClick={() => onClaimItem(item)}
-              >
+              <Card key={item.id} className="hover:shadow-lg transition-shadow">
                 {item.image_url && (
-                  <div className="relative h-28 w-full">
-                    <Image
-                      src={item.image_url || "/placeholder.svg"}
+                  <div className="aspect-video relative overflow-hidden rounded-t-lg">
+                    <img
+                      src={item.image_url}
                       alt={item.title}
-                      fill
-                      className="object-cover"
-                      loading="lazy"
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                      className="object-cover w-full h-full"
                     />
                   </div>
                 )}
-                <CardHeader className="p-2">
-                  <div className="flex justify-between items-start gap-1">
-                    <div className="relative group flex-1 min-w-0">
-                      <CardTitle className="text-xs sm:text-sm lg:text-base font-medium line-clamp-1 group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
-                        {item.title}
-                      </CardTitle>
-                    </div>
-                    <div className="flex flex-col gap-1 flex-shrink-0">
-                      <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 h-4">
-                        {item.category}
-                      </Badge>
-                      {getStatusBadge(item.status)}
-                    </div>
-                  </div>
-                  <div className="relative group mt-0.5">
-                    <CardDescription className="text-xs sm:text-sm line-clamp-1 text-gray-600 group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
-                      {item.description}
-                    </CardDescription>
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg line-clamp-2">{item.title}</CardTitle>
+                    <Badge 
+                      variant={item.status === 'available' ? 'default' : 'secondary'}
+                      className={
+                        item.status === 'available' ? 'bg-green-100 text-green-800' :
+                        item.status === 'requested' ? 'bg-yellow-100 text-yellow-800' :
+                        item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }
+                    >
+                      {item.status}
+                    </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-2 pt-0 space-y-1">
-                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{item.pickup_location}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                    <User className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{item.owner_name}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-1">
-                      <Package className="h-3 w-3" />
-                      <span className="font-medium text-xs sm:text-sm">{item.quantity}</span>
-                    </div>
-                    {item.condition && (
-                      <Badge variant="outline" className="text-xs px-1 py-0 h-4">
-                        {item.condition}
-                      </Badge>
-                    )}
+                <CardContent className="space-y-3">
+                  {item.description && (
+                    <p className="text-gray-600 text-sm line-clamp-3">{item.description}</p>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{item.category}</Badge>
+                    <Badge variant="outline">{item.quantity}</Badge>
+                    {item.condition && <Badge variant="outline">{item.condition}</Badge>}
                   </div>
 
                   {item.expiry_date && (
-                    <div className="flex items-center gap-1 text-orange-600">
-                      <Clock className="h-3 w-3" />
-                      <span className="text-xs sm:text-sm">
-                        Exp:{" "}
-                        {new Date(item.expiry_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </span>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <CalendarDays className="h-4 w-4" />
+                      <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                     </div>
                   )}
 
-                  <div className="flex gap-1 pt-1">
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onClaimItem(item);
-                      }}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-6 sm:h-7 px-1"
-                      disabled={item.status !== "available"}
-                    >
-                      {item.status === "available" ? "Request" : "Requested"}
-                    </Button>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="h-4 w-4" />
+                    <span>{item.pickup_location}</span>
+                  </div>
 
-                    {user && user.id === item.user_id && (
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditItem(item);
-                        }}
-                        variant="outline"
+                  <div className="text-sm text-gray-500">
+                    By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    {user && user.id !== item.user_id && item.status === 'available' && (
+                      <Button 
+                        onClick={() => setSelectedItem(item)}
+                        className="flex-1"
                         size="sm"
-                        className="px-1 text-xs sm:text-sm h-6 sm:h-7"
                       >
-                        Edit
+                        <Plus className="h-4 w-4 mr-2" />
+                        Request
                       </Button>
+                    )}
+                    
+                    {user && user.id === item.user_id && (
+                      <>
+                        <Button 
+                          onClick={() => setEditingItem(item)}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this item?')) {
+                              handleDeleteItem(item.id)
+                            }
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </CardContent>
@@ -346,8 +355,12 @@ export default function ItemList({ itemType, collaborationId, onClaimItem }: Ite
           </div>
 
           {hasMore && (
-            <div className="text-center pt-4">
-              <Button onClick={loadMore} variant="outline" disabled={loading} className="min-w-32 h-8 sm:h-9 text-xs sm:text-sm">
+            <div className="text-center">
+              <Button 
+                onClick={loadMore}
+                variant="outline"
+                disabled={loading}
+              >
                 {loading ? "Loading..." : "Load More"}
               </Button>
             </div>
@@ -355,12 +368,24 @@ export default function ItemList({ itemType, collaborationId, onClaimItem }: Ite
         </>
       )}
 
-      <EditItemModal
-        item={editingItem}
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onItemUpdated={handleItemUpdated}
-      />
+      {/* Modals */}
+      {selectedItem && (
+        <ClaimFoodModal
+          item={selectedItem}
+          isOpen={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onClaimed={handleItemClaimed}
+        />
+      )}
+
+      {editingItem && (
+        <EditItemModal
+          item={editingItem}
+          isOpen={!!editingItem}
+          onClose={() => setEditingItem(null)}
+          onUpdated={handleItemUpdated}
+        />
+      )}
     </div>
   )
 }
