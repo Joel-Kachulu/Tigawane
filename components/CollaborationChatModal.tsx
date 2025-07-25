@@ -1,3 +1,4 @@
+
 "use client"
 
 import type React from "react"
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send, Users, Package, Utensils, Gift, ExternalLink } from "lucide-react"
+import { Send, Users, Package, Utensils, Gift, ExternalLink, Clock, MapPin, Calendar } from "lucide-react"
 
 interface CollaborationMessage {
   id: string
@@ -42,6 +43,7 @@ interface DonationSummary {
     title: string
     item_type: string
     user_name?: string
+    created_at: string
   }>
 }
 
@@ -169,17 +171,17 @@ export default function CollaborationChatModal({
     if (!collaborationId) return
 
     try {
-      // First check if collaboration_id column exists in items table
+      // Get items for this collaboration
       const { data: donationData, error } = await supabase
         .from("items")
         .select("id, title, item_type, user_id, created_at")
         .eq("status", "available")
+        .eq("collaboration_id", collaborationId)
         .order("created_at", { ascending: false })
-        .limit(20) // Get more items since we can't filter by collaboration_id yet
+        .limit(10)
 
       if (error) {
         console.error("Error fetching donations:", error)
-        // Set empty state on error
         setDonationSummary({
           food_count: 0,
           item_count: 0,
@@ -214,27 +216,25 @@ export default function CollaborationChatModal({
         })
       }
 
-      // Take only first 5 items for recent donations
-      const limitedData = donationData.slice(0, 5)
-      const foodCount = limitedData.filter(item => item.item_type === "food").length
-      const itemCount = limitedData.filter(item => item.item_type === "non-food").length
+      const foodCount = donationData.filter(item => item.item_type === "food").length
+      const itemCount = donationData.filter(item => item.item_type === "non-food").length
 
-      const recentDonations = limitedData.map(item => ({
+      const recentDonations = donationData.map(item => ({
         id: item.id,
         title: item.title,
         item_type: item.item_type,
-        user_name: profilesMap.get(item.user_id) || "Anonymous"
+        user_name: profilesMap.get(item.user_id) || "Anonymous",
+        created_at: item.created_at
       }))
 
       setDonationSummary({
         food_count: foodCount,
         item_count: itemCount,
-        total_count: limitedData.length,
+        total_count: donationData.length,
         recent_donations: recentDonations
       })
     } catch (error) {
       console.error("Error fetching donation summary:", error)
-      // Set empty state on catch
       setDonationSummary({
         food_count: 0,
         item_count: 0,
@@ -276,133 +276,231 @@ export default function CollaborationChatModal({
     }
   }
 
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (minutes < 1) return "Just now"
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    if (days < 7) return `${days}d ago`
+    return date.toLocaleDateString()
+  }
+
   if (!collaborationId) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl h-[700px] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            {collaborationTitle}
-          </DialogTitle>
-          <DialogDescription>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                {participants.length} participants
-              </Badge>
-              <span className="text-xs text-gray-500">
-                {participants.map((p) => p.full_name || "Anonymous").join(", ")}
-              </span>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <Users className="h-5 w-5 text-green-600" />
             </div>
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Donation Summary Section */}
-        {donationSummary && donationSummary.total_count > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-green-800 flex items-center gap-2">
-                <Gift className="h-4 w-4" />
-                Available Donations
-              </h4>
-              <div className="flex gap-2">
-                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                  {donationSummary.total_count} total
+            <div className="flex-1">
+              <div className="text-green-700">{collaborationTitle}</div>
+              <div className="flex items-center gap-3 mt-1">
+                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                  <Users className="h-3 w-3 mr-1" />
+                  {participants.length} participants
                 </Badge>
-                <a 
-                  href={`/collaborations/${collaborationId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  View All
-                </a>
+                {donationSummary && donationSummary.total_count > 0 && (
+                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                    <Gift className="h-3 w-3 mr-1" />
+                    {donationSummary.total_count} donations
+                  </Badge>
+                )}
               </div>
             </div>
-            
-            <div className="flex gap-4 text-xs text-green-700">
-              {donationSummary.food_count > 0 && (
-                <div className="flex items-center gap-1">
-                  <Utensils className="h-3 w-3" />
-                  <span>{donationSummary.food_count} food items</span>
-                </div>
-              )}
-              {donationSummary.item_count > 0 && (
-                <div className="flex items-center gap-1">
-                  <Package className="h-3 w-3" />
-                  <span>{donationSummary.item_count} other items</span>
-                </div>
-              )}
-            </div>
-
-            {/* Recent Donations */}
-            {donationSummary.recent_donations.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-green-800">Recent donations:</p>
-                <div className="grid grid-cols-1 gap-1 max-h-16 overflow-y-auto">
-                  {donationSummary.recent_donations.slice(0, 3).map((donation) => (
-                    <div key={donation.id} className="flex items-center justify-between text-xs bg-white rounded px-2 py-1">
-                      <span className="text-green-700 truncate">{donation.title}</span>
-                      <span className="text-green-500 text-xs ml-2 flex-shrink-0">
-                        by {donation.user_name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {donationSummary.recent_donations.length > 3 && (
-                  <p className="text-xs text-green-500 italic text-center">
-                    +{donationSummary.recent_donations.length - 3} more donations available
-                  </p>
+          </DialogTitle>
+          <DialogDescription className="text-sm text-gray-600">
+            {participants.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 mt-2">
+                <span className="text-xs font-medium">Participants:</span>
+                {participants.slice(0, 5).map((p, index) => (
+                  <span key={p.id} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    {p.full_name || "Anonymous"}
+                  </span>
+                ))}
+                {participants.length > 5 && (
+                  <span className="text-xs text-gray-500">+{participants.length - 5} more</span>
                 )}
               </div>
             )}
-          </div>
-        )}
+          </DialogDescription>
+        </DialogHeader>
 
-        <ScrollArea className="flex-1 p-4 border rounded" ref={scrollAreaRef}>
-          <div className="space-y-4">
-            {messages.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No messages yet</p>
-                <p className="text-xs mt-1">Start the conversation!</p>
+        <div className="flex flex-1 gap-4 overflow-hidden">
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col">
+            <ScrollArea className="flex-1 p-4 border rounded-lg bg-gray-50" ref={scrollAreaRef}>
+              <div className="space-y-4">
+                {messages.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Users className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="font-medium text-gray-600 mb-2">No messages yet</h3>
+                    <p className="text-sm">Start the conversation and coordinate your collaboration!</p>
+                  </div>
+                ) : (
+                  messages.map((message, index) => {
+                    const isOwnMessage = message.sender_id === user?.id
+                    const showSender = index === 0 || messages[index - 1].sender_id !== message.sender_id
+                    
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                      >
+                        <div className={`max-w-[75%] ${isOwnMessage ? "order-2" : "order-1"}`}>
+                          {showSender && !isOwnMessage && (
+                            <div className="text-xs font-medium text-gray-600 mb-1 px-3">
+                              {message.sender_name}
+                            </div>
+                          )}
+                          <div
+                            className={`p-3 rounded-2xl shadow-sm ${
+                              isOwnMessage 
+                                ? "bg-green-600 text-white rounded-br-md" 
+                                : "bg-white text-gray-900 border rounded-bl-md"
+                            }`}
+                          >
+                            <p className="text-sm leading-relaxed">{message.message}</p>
+                            <div className={`text-xs mt-2 flex items-center gap-1 ${
+                              isOwnMessage ? "text-green-100" : "text-gray-500"
+                            }`}>
+                              <Clock className="h-3 w-3" />
+                              {formatTime(message.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
               </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender_id === user?.id ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      message.sender_id === user?.id ? "bg-green-600 text-white" : "bg-gray-100 text-gray-900"
-                    }`}
-                  >
-                    {message.sender_id !== user?.id && (
-                      <p className="text-xs font-medium mb-1 opacity-70">{message.sender_name}</p>
+            </ScrollArea>
+
+            {/* Message Input */}
+            <div className="flex gap-2 mt-4 p-2 bg-white border rounded-lg">
+              <Input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message..."
+                disabled={loading}
+                className="border-0 focus-visible:ring-0 shadow-none"
+              />
+              <Button 
+                onClick={sendMessage} 
+                disabled={loading || !newMessage.trim()} 
+                size="icon"
+                className="bg-green-600 hover:bg-green-700 flex-shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Donations Sidebar */}
+          <div className="w-80 border-l pl-4 space-y-4">
+            <div className="sticky top-0">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <Gift className="h-4 w-4 text-green-600" />
+                Available Donations
+              </h3>
+              
+              {donationSummary && donationSummary.total_count > 0 ? (
+                <div className="space-y-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {donationSummary.food_count > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                        <div className="flex items-center justify-center gap-1 text-green-700 mb-1">
+                          <Utensils className="h-4 w-4" />
+                          <span className="text-sm font-medium">Food</span>
+                        </div>
+                        <div className="text-lg font-bold text-green-800">{donationSummary.food_count}</div>
+                      </div>
                     )}
-                    <p className="text-sm">{message.message}</p>
-                    <p className="text-xs opacity-70 mt-1">{new Date(message.created_at).toLocaleTimeString()}</p>
+                    {donationSummary.item_count > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                        <div className="flex items-center justify-center gap-1 text-blue-700 mb-1">
+                          <Package className="h-4 w-4" />
+                          <span className="text-sm font-medium">Items</span>
+                        </div>
+                        <div className="text-lg font-bold text-blue-800">{donationSummary.item_count}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recent Donations List */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700">Recent donations:</h4>
+                    <ScrollArea className="h-64">
+                      <div className="space-y-2 pr-2">
+                        {donationSummary.recent_donations.map((donation) => (
+                          <div key={donation.id} className="bg-white border rounded-lg p-3 hover:shadow-sm transition-shadow">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h5 className="font-medium text-sm text-gray-900 truncate">{donation.title}</h5>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge 
+                                    variant="secondary" 
+                                    className={`text-xs ${
+                                      donation.item_type === 'food' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}
+                                  >
+                                    {donation.item_type === 'food' ? (
+                                      <Utensils className="h-3 w-3 mr-1" />
+                                    ) : (
+                                      <Package className="h-3 w-3 mr-1" />
+                                    )}
+                                    {donation.item_type}
+                                  </Badge>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  by {donation.user_name} • {formatTime(donation.created_at)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+
+                  {/* View All Link */}
+                  <div className="text-center pt-2 border-t">
+                    <a 
+                      href={`/collaborations/${collaborationId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center justify-center gap-1"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View Full Collaboration Page
+                    </a>
                   </div>
                 </div>
-              ))
-            )}
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Gift className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <p className="text-sm">No donations yet</p>
+                  <p className="text-xs mt-1">Share items to get started!</p>
+                </div>
+              )}
+            </div>
           </div>
-        </ScrollArea>
-
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            disabled={loading}
-          />
-          <Button onClick={sendMessage} disabled={loading || !newMessage.trim()} size="icon">
-            <Send className="h-4 w-4" />
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
