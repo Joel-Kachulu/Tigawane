@@ -256,11 +256,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-lg transition-shadow">
+              <Card key={item.id} className="hover:shadow-md transition-shadow duration-200">
                 {item.image_url && (
-                  <div className="aspect-video relative overflow-hidden rounded-t-lg">
+                  <div className="relative h-32 w-full overflow-hidden rounded-t-lg">
                     <img
                       src={item.image_url}
                       alt={item.title}
@@ -268,57 +268,56 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     />
                   </div>
                 )}
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg line-clamp-2">{item.title}</CardTitle>
+                <CardHeader className="p-3 pb-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">{item.title}</CardTitle>
                     <Badge 
                       variant={item.status === 'available' ? 'default' : 'secondary'}
-                      className={
+                      className={`text-xs shrink-0 ${
                         item.status === 'available' ? 'bg-green-100 text-green-800' :
                         item.status === 'requested' ? 'bg-yellow-100 text-yellow-800' :
                         item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
                         'bg-gray-100 text-gray-800'
-                      }
+                      }`}
                     >
                       {item.status}
                     </Badge>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   {item.description && (
-                    <p className="text-gray-600 text-sm line-clamp-3">{item.description}</p>
+                    <p className="text-gray-600 text-xs line-clamp-2 leading-tight">{item.description}</p>
                   )}
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{item.category}</Badge>
-                    <Badge variant="outline">{item.quantity}</Badge>
-                    {item.condition && <Badge variant="outline">{item.condition}</Badge>}
+                </CardHeader>
+                <CardContent className="p-3 pt-0 space-y-2">
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-xs">{item.category}</Badge>
+                    <Badge variant="outline" className="text-xs">{item.quantity}</Badge>
+                    {item.condition && <Badge variant="outline" className="text-xs">{item.condition}</Badge>}
                   </div>
 
                   {item.expiry_date && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <CalendarDays className="h-4 w-4" />
+                    <div className="flex items-center gap-1 text-xs text-gray-600">
+                      <CalendarDays className="h-3 w-3" />
                       <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="h-4 w-4" />
-                    <span>{item.pickup_location}</span>
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{item.pickup_location}</span>
                   </div>
 
-                  <div className="text-sm text-gray-500">
+                  <div className="text-xs text-gray-500 truncate">
                     By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-1 pt-1">
                     {user && user.id !== item.user_id && item.status === 'available' && (
                       <Button 
                         onClick={() => setSelectedItem(item)}
-                        className="flex-1"
+                        className="flex-1 text-xs py-1.5 h-auto"
                         size="sm"
                       >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="h-3 w-3 mr-1" />
                         Request
                       </Button>
                     )}
@@ -329,9 +328,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           onClick={() => setEditingItem(item)}
                           variant="outline"
                           size="sm"
-                          className="flex-1"
+                          className="flex-1 text-xs py-1.5 h-auto"
                         >
-                          <Edit className="h-4 w-4 mr-2" />
+                          <Edit className="h-3 w-3 mr-1" />
                           Edit
                         </Button>
                         <Button 
@@ -342,9 +341,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           }}
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 text-xs py-1.5 h-auto px-2"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </>
                     )}

@@ -151,49 +151,49 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
           <div className="text-gray-400 text-sm sm:text-base mt-2">Check back later or be the first to share!</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="overflow-hidden" 
+              className="overflow-hidden hover:shadow-md transition-shadow duration-200" 
               clickable={true}
               onClick={() => onClaimFood(item)}
             >
               {item.image_url && (
-                <div className="relative h-48 w-full">
+                <div className="relative h-32 w-full">
                   <Image src={item.image_url || "/placeholder.svg"} alt={item.title} fill className="object-cover" />
                 </div>
               )}
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-base sm:text-lg lg:text-xl">{item.title}</CardTitle>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs sm:text-sm">
+              <CardHeader className="p-3 pb-2">
+                <div className="flex justify-between items-start gap-2">
+                  <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">{item.title}</CardTitle>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs shrink-0">
                     {item.category}
                   </Badge>
                 </div>
-                <div className="relative group">
-                  <CardDescription className="line-clamp-2 text-sm sm:text-base group-hover:line-clamp-none group-hover:bg-gray-50 group-hover:p-2 group-hover:rounded group-hover:absolute group-hover:z-10 group-hover:shadow-lg group-hover:border group-hover:min-w-full group-hover:max-w-xs group-hover:transition-all group-hover:duration-200">
+                {item.description && (
+                  <CardDescription className="line-clamp-2 text-xs leading-tight">
                     {item.description}
                   </CardDescription>
-                </div>
+                )}
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
-                  <MapPin className="h-4 w-4" />
-                  <span>{item.pickup_location}</span>
+              <CardContent className="p-3 pt-0 space-y-2">
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{item.pickup_location}</span>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600">
-                  <User className="h-4 w-4" />
-                  <span>Shared by {item.owner_name || "Anonymous"}</span>
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span className="truncate">By {item.owner_name || "Anonymous"}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm sm:text-base">
-                  <span className="font-medium">Quantity: {item.quantity}</span>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-medium truncate">{item.quantity}</span>
                   {item.expiry_date && (
-                    <div className="flex items-center gap-1 text-orange-600">
-                      <Clock className="h-4 w-4" />
-                      <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
+                    <div className="flex items-center gap-1 text-orange-600 shrink-0">
+                      <Clock className="h-3 w-3" />
+                      <span className="text-xs">{new Date(item.expiry_date).toLocaleDateString()}</span>
                     </div>
                   )}
                 </div>
@@ -203,9 +203,10 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
                     e.stopPropagation();
                     onClaimFood(item);
                   }} 
-                  className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
+                  className="w-full bg-green-600 hover:bg-green-700 text-xs py-1.5 h-auto"
+                  size="sm"
                 >
-                  Request This Food
+                  Request
                 </Button>
               </CardContent>
             </Card>
