@@ -176,6 +176,20 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true)
+      
+      // Check if there's an active session first
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        // No active session, just update local state
+        setUser(null)
+        setIsAdmin(false)
+        setAdminRole(null)
+        setError(null)
+        console.log("🔒 No active admin session, updating local state")
+        return
+      }
+
       const { error } = await supabase.auth.signOut()
       if (error) {
         console.error("Error signing out:", error)
@@ -184,6 +198,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
         setIsAdmin(false)
         setAdminRole(null)
+        setError(null)
       }
     } catch (err: any) {
       console.error("Unexpected error signing out:", err)

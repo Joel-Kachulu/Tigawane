@@ -114,12 +114,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true)
     try {
+      // Check if there's an active session first
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        // No active session, just update local state
+        setUser(null)
+        setError(null)
+        console.log("🔒 No active session, updating local state")
+        return
+      }
+
       const { error } = await supabase.auth.signOut()
       if (error) {
         setError(error.message)
         alert(`Error signing out: ${error.message}`)
       } else {
         setUser(null)
+        setError(null)
         console.log("🔒 Signed out")
       }
     } catch (err: any) {
