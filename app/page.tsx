@@ -133,7 +133,7 @@ function AppContent() {
     if (showLanding) {
       return <LandingPage onGetStarted={handleGetStarted} />
     }
-    return <Auth />
+    return <Auth onBackToLanding={() => setShowLanding(true)} />
   }
 
   if (showLanding) {

@@ -10,8 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowLeft } from "lucide-react"
 
-export default function Auth() {
+interface AuthProps {
+  onBackToLanding?: () => void
+}
+
+export default function Auth({ onBackToLanding }: AuthProps) {
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -138,6 +143,19 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-green-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          {onBackToLanding && (
+            <div className="flex justify-start mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBackToLanding}
+                className="flex items-center gap-2 text-green-600 hover:text-green-700 hover:bg-green-100 p-2 rounded-full"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="text-sm">Back</span>
+              </Button>
+            </div>
+          )}
           <CardTitle className="text-2xl font-bold text-green-700">🥗 Malawi Food Share</CardTitle>
           <CardDescription>Share food, reduce waste, help your community</CardDescription>
         </CardHeader>
