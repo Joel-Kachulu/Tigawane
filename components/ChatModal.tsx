@@ -208,7 +208,18 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
     } catch (error: any) {
       console.error("Error sending message:", error)
       setNewMessage(messageText)
-      alert(`Error sending message: ${error.message}`)
+      
+      // Better error handling
+      const errorMessage = error?.message || error?.toString() || "Unknown error occurred"
+      alert(`Error sending message: ${errorMessage}`)
+      
+      // Log more details for debugging
+      console.error("Full error details:", {
+        error,
+        claimId,
+        userId: user?.id,
+        messageText
+      })
     } finally {
       setSending(false)
     }

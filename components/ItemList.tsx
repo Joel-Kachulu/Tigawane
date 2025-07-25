@@ -53,6 +53,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
   const [hasMore, setHasMore] = useState(true)
   const [profiles, setProfiles] = useState<Record<string, any>>({})
   const [requestingItems, setRequestingItems] = useState<Set<string>>(new Set())
+  const [requestCounts, setRequestCounts] = useState<Record<string, number>>({})
 
   const itemsPerPage = 12
 
@@ -115,6 +116,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       if (data && data.length > 0) {
         const userIds = [...new Set(data.map(item => item.user_id))]
         await fetchProfiles(userIds)
+        
+        // Fetch request counts for owner's items
+        if (user) {
+          await fetchRequestCounts(data.filter(item => item.user_id === user.id))
+        }
       }
     } catch (error) {
       console.error(`❌ Error fetching ${itemType} items:`, error)
@@ -143,6 +149,30 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       console.log(`✅ Successfully fetched ${data?.length || 0} profiles`)
     } catch (error) {
       console.error("❌ Error fetching profiles:", error)
+    }
+  }
+
+  const fetchRequestCounts = async (ownerItems: Item[]) => {
+    try {
+      const itemIds = ownerItems.map(item => item.id)
+      if (itemIds.length === 0) return
+
+      const { data, error } = await supabase
+        .from("claims")
+        .select("item_id")
+        .in("item_id", itemIds)
+        .eq("status", "pending")
+
+      if (error) throw error
+
+      const counts = (data || []).reduce((acc, claim) => {
+        acc[claim.item_id] = (acc[claim.item_id] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+
+      setRequestCounts(counts)
+    } catch (error) {
+      console.error("❌ Error fetching request counts:", error)
     }
   }
 
@@ -257,11 +287,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {filteredItems.map((item) => (
               <Card key={item.id} className="hover:shadow-md transition-shadow duration-200">
                 {item.image_url && (
-                  <div className="relative h-32 w-full overflow-hidden rounded-t-lg">
+                  <div className="relative h-24 w-full overflow-hidden rounded-t-lg">
                     <img
                       src={item.image_url}
                       alt={item.title}
@@ -269,9 +299,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     />
                   </div>
                 )}
-                <CardHeader className="p-3 pb-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">{item.title}</CardTitle>
+                <CardHeader className="p-2 pb-1">
+                  <div className="flex justify-between items-start gap-1">
+                    <CardTitle className="text-xs font-semibold line-clamp-2 leading-tight">{item.title}</CardTitle>
                     <Badge 
                       variant={item.status === 'available' ? 'default' : 'secondary'}
                       className={`text-xs shrink-0 ${
@@ -281,14 +311,16 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                         'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {item.status}
+                      {item.status === 'available' && requestCounts[item.id] > 0 
+                        ? `Requested (${requestCounts[item.id]})` 
+                        : item.status}
                     </Badge>
                   </div>
                   {item.description && (
-                    <p className="text-gray-600 text-xs line-clamp-2 leading-tight">{item.description}</p>
+                    <p className="text-gray-600 text-xs line-clamp-1 leading-tight">{item.description}</p>
                   )}
                 </CardHeader>
-                <CardContent className="p-3 pt-0 space-y-2">
+                <CardContent className="p-2 pt-0 space-y-1.5">
                   <div className="flex flex-wrap gap-1">
                     <Badge variant="outline" className="text-xs">{item.category}</Badge>
                     <Badge variant="outline" className="text-xs">{item.quantity}</Badge>
