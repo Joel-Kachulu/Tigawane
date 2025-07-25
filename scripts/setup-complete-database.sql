@@ -1,11 +1,11 @@
 -- Drop existing tables if they exist (be careful with this in production!)
 DROP TABLE IF EXISTS collaboration_messages CASCADE;
-DROP TABLE IF EXISTS collaboration_participants CASCADE;
+DROP TABLE IF EXISTS colssages CASCADE;
+DROP TABLE IF EXISTS claims CASCADE;
+DROP TABLE IF EXISTS itlaboration_participants CASCADE;
 DROP TABLE IF EXISTS collaboration_requests CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS messages CASCADE;
-DROP TABLE IF EXISTS claims CASCADE;
-DROP TABLE IF EXISTS items CASCADE;
+DROP TABLE IF EXISTS meems CASCADE;
 DROP TABLE IF EXISTS food_items CASCADE;
 DROP TABLE IF EXISTS profiles CASCADE;
 
