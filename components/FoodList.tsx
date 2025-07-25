@@ -155,9 +155,7 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="overflow-hidden hover:shadow-md transition-shadow duration-200" 
-              clickable={true}
-              onClick={() => onClaimFood(item)}
+              className="overflow-hidden hover:shadow-md transition-shadow duration-200"
             >
               {item.image_url && (
                 <div className="relative h-32 w-full">
@@ -200,10 +198,11 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
 
                 <Button 
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     onClaimFood(item);
                   }} 
-                  className="w-full bg-green-600 hover:bg-green-700 text-xs py-1.5 h-auto"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-1.5 h-auto"
                   size="sm"
                 >
                   Request

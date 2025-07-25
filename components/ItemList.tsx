@@ -313,8 +313,12 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   <div className="flex gap-1 pt-1">
                     {user && user.id !== item.user_id && item.status === 'available' && (
                       <Button 
-                        onClick={() => setSelectedItem(item)}
-                        className="flex-1 text-xs py-1.5 h-auto"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedItem(item);
+                        }}
+                        className="flex-1 text-xs py-1.5 h-auto bg-green-600 hover:bg-green-700 text-white"
                         size="sm"
                       >
                         <Plus className="h-3 w-3 mr-1" />
