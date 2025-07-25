@@ -18,6 +18,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [location, setLocation] = useState("")
+  const [activeTab, setActiveTab] = useState("signin")
 
   const router = useRouter()
 
@@ -42,13 +43,20 @@ export default function Auth() {
         throw error
       }
 
-      // Refresh session (important in some cases)
-      const { data: sessionData } = await supabase.auth.getSession()
+      // Sign out the user after successful signup
+      await supabase.auth.signOut()
 
-      alert("Check your email for the confirmation link!")
+      alert("Account created successfully! Please sign in with your email and password.")
 
-      // Redirect after signup to avoid stuck page
-      router.push("/")
+      // Reset form and switch to sign in tab
+      setEmail("")
+      setPassword("")
+      setFullName("")
+      setPhone("")
+      setLocation("")
+      
+      // Switch to sign in tab
+      setActiveTab("signin")
     } catch (error: any) {
       console.error("Sign up error:", error)
       alert(error.message || "Error creating account. Please try again.")
@@ -92,7 +100,7 @@ export default function Auth() {
           <CardDescription>Share food, reduce waste, help your community</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
