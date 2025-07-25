@@ -289,7 +289,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredItems.map((item) => (
-              <Card key={item.id} className="group hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200">
+              <Card key={item.id} className="group hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200 w-full max-w-[280px] mx-auto">
                 {item.image_url && (
                   <div className="relative h-40 w-full overflow-hidden rounded-t-lg">
                     <img
@@ -325,7 +325,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   </div>
                   {item.description && (
                     <div className="relative group">
-                      <p className="text-gray-600 text-sm line-clamp-2 leading-tight group-hover:line-clamp-none">
+                      <p className="text-gray-600 text-xs line-clamp-2 leading-tight group-hover:line-clamp-none">
                         {item.description}
                       </p>
                       <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
@@ -342,13 +342,13 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   </div>
 
                   {item.expiry_date && (
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <div className="flex items-center gap-1 text-xs text-gray-600">
                       <CalendarDays className="h-4 w-4" />
                       <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 text-sm text-gray-600 relative group">
+                  <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
                     <MapPin className="h-4 w-4 shrink-0" />
                     <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
                     <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
@@ -356,7 +356,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </div>
                   </div>
 
-                  <div className="text-sm text-gray-500 relative group">
+                  <div className="text-xs text-gray-500 relative group">
                     <span className="truncate block group-hover:overflow-visible">
                       By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
                     </span>
@@ -383,7 +383,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                             });
                           }, 2000);
                         }}
-                        className="flex-1 text-sm py-2 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transform hover:scale-105 transition-all duration-200"
+                        className="flex-1 text-xs py-2 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transform hover:scale-105 transition-all duration-200"
                         size="sm"
                         disabled={requestingItems.has(item.id)}
                       >
@@ -398,7 +398,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           onClick={() => setEditingItem(item)}
                           variant="outline"
                           size="sm"
-                          className="flex-1 text-sm py-2 h-auto hover:scale-105 transition-all duration-200"
+                          className="flex-1 text-xs py-2 h-auto hover:scale-105 transition-all duration-200"
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
@@ -411,7 +411,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           }}
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 text-sm py-2 h-auto px-3 hover:scale-105 transition-all duration-200"
+                          className="text-red-600 hover:text-red-700 text-xs py-2 h-auto px-3 hover:scale-105 transition-all duration-200"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

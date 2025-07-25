@@ -271,15 +271,15 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="group overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200" 
+              className="group overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200 w-full max-w-[280px] mx-auto" 
               onClick={() => handleEditItem(item)}
             >
               {item.image_url && (
-                <div className="relative h-56 w-full">
+                <div className="relative h-40 w-full overflow-hidden rounded-t-lg">
                   <Image
                     src={item.image_url || "/placeholder.svg"}
                     alt={item.title}
@@ -290,66 +290,66 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                   />
                 </div>
               )}
-              <CardHeader className="p-5">
+              <CardHeader className="p-3 pb-2">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 relative group">
-                    <CardTitle className="text-lg font-bold flex items-center gap-2 line-clamp-2 group-hover:line-clamp-none">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-1 line-clamp-2 group-hover:line-clamp-none">
                       {item.title}
                       {requestCounts[item.id] > 0 && (
-                        <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-sm font-semibold bg-yellow-200 text-yellow-800 animate-pulse">
-                          {requestCounts[item.id]} Request{requestCounts[item.id] > 1 ? "s" : ""}
+                        <span className="ml-1 inline-flex items-center justify-center px-1 py-0.5 rounded-full text-xs font-semibold bg-yellow-200 text-yellow-800 animate-pulse">
+                          {requestCounts[item.id]}
                         </span>
                       )}
                     </CardTitle>
-                    <div className="absolute hidden group-hover:block bg-black text-white text-sm p-3 rounded shadow-lg z-10 mt-2 whitespace-normal max-w-sm">
+                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
                       {item.title}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-sm">
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
                       {item.category}
                     </Badge>
                     {getStatusBadge(item.status)}
                   </div>
                 </div>
                 <div className="relative group">
-                  <CardDescription className="line-clamp-2 text-base leading-relaxed group-hover:line-clamp-none">
+                  <CardDescription className="line-clamp-2 text-xs leading-tight group-hover:line-clamp-none">
                     {item.description}
                   </CardDescription>
-                  <div className="absolute hidden group-hover:block bg-black text-white text-sm p-3 rounded shadow-lg z-10 mt-2 whitespace-normal max-w-sm">
+                  <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
                     {item.description}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-5">
-                <div className="flex items-center gap-2 text-base text-gray-600 relative group">
-                  <MapPin className="h-5 w-5" />
+              <CardContent className="space-y-2 p-3 pt-0">
+                <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
+                  <MapPin className="h-4 w-4 shrink-0" />
                   <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
-                  <div className="absolute hidden group-hover:block bg-black text-white text-sm p-2 rounded shadow-lg z-10 mt-8 whitespace-nowrap">
+                  <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
                     {item.pickup_location}
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center text-base">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
+                <div className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-1">
+                    <Package className="h-4 w-4" />
                     <span className="font-medium">{item.quantity}</span>
                   </div>
                   {item.condition && (
-                    <Badge variant="outline" className="text-sm">
+                    <Badge variant="outline" className="text-xs">
                       {item.condition}
                     </Badge>
                   )}
                 </div>
 
                 {item.expiry_date && (
-                  <div className="flex items-center gap-2 text-orange-600 text-base">
-                    <Clock className="h-5 w-5" />
+                  <div className="flex items-center gap-1 text-orange-600 text-xs">
+                    <Clock className="h-4 w-4" />
                     <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-3">
+                <div className="flex gap-1 pt-2">
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -357,9 +357,9 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                     }}
                     variant="outline"
                     size="sm"
-                    className="flex-1 flex items-center gap-2 text-sm py-2.5 hover:scale-105 transition-all duration-200"
+                    className="flex-1 flex items-center gap-1 text-xs py-2 h-auto hover:scale-105 transition-all duration-200"
                   >
-                    <Edit className="h-4 w-4" />
+                    <Edit className="h-3 w-3" />
                     Edit
                   </Button>
                   <Button
@@ -369,10 +369,10 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                     }}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2.5 hover:scale-105 transition-all duration-200"
+                    className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 text-xs py-2 h-auto px-2 hover:scale-105 transition-all duration-200"
                     disabled={deleting === item.id}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                     {deleting === item.id ? "..." : "Delete"}
                   </Button>
                   {item.status !== "completed" && (
@@ -380,11 +380,11 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                       onClick={e => { e.stopPropagation(); handleMarkAsShared(item); }}
                       variant="outline"
                       size="sm"
-                      className="flex items-center gap-2 text-green-700 border-green-400 hover:bg-green-50 text-sm py-2.5 hover:scale-105 transition-all duration-200"
+                      className="flex items-center gap-1 text-green-700 border-green-400 hover:bg-green-50 text-xs py-2 h-auto px-2 hover:scale-105 transition-all duration-200"
                       disabled={markingShared === item.id}
                     >
-                      <CheckCircle className="h-4 w-4" />
-                      {markingShared === item.id ? "Marking..." : "Mark as Shared"}
+                      <CheckCircle className="h-3 w-3" />
+                      {markingShared === item.id ? "..." : "Share"}
                     </Button>
                   )}
                 </div>
