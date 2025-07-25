@@ -52,6 +52,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
   const [currentPage, setCurrentPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [profiles, setProfiles] = useState<Record<string, any>>({})
+  const [requestingItems, setRequestingItems] = useState<Set<string>>(new Set())
 
   const itemsPerPage = 12
 
@@ -264,7 +265,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     <img
                       src={item.image_url}
                       alt={item.title}
-                      className="object-cover w-full h-full"
+                      className="object-cover object-center w-full h-full"
                     />
                   </div>
                 )}
@@ -316,13 +317,24 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          setRequestingItems(prev => new Set(prev).add(item.id));
                           setSelectedItem(item);
+                          
+                          // Remove loading state after a delay
+                          setTimeout(() => {
+                            setRequestingItems(prev => {
+                              const newSet = new Set(prev);
+                              newSet.delete(item.id);
+                              return newSet;
+                            });
+                          }, 2000);
                         }}
-                        className="flex-1 text-xs py-1.5 h-auto bg-green-600 hover:bg-green-700 text-white"
+                        className="flex-1 text-xs py-1.5 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                         size="sm"
+                        disabled={requestingItems.has(item.id)}
                       >
                         <Plus className="h-3 w-3 mr-1" />
-                        Request
+                        {requestingItems.has(item.id) ? "Requesting..." : "Request"}
                       </Button>
                     )}
                     

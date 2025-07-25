@@ -32,6 +32,7 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState("all")
+  const [requestingItems, setRequestingItems] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchFoodItems()
@@ -158,8 +159,14 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
               className="overflow-hidden hover:shadow-md transition-shadow duration-200"
             >
               {item.image_url && (
-                <div className="relative h-32 w-full">
-                  <Image src={item.image_url || "/placeholder.svg"} alt={item.title} fill className="object-cover" />
+                <div className="relative h-32 w-full overflow-hidden rounded-t-lg">
+                  <Image 
+                    src={item.image_url || "/placeholder.svg"} 
+                    alt={item.title} 
+                    fill 
+                    className="object-cover object-center" 
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
                 </div>
               )}
               <CardHeader className="p-3 pb-2">
@@ -200,12 +207,23 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    setRequestingItems(prev => new Set(prev).add(item.id));
                     onClaimFood(item);
+                    
+                    // Remove loading state after a delay
+                    setTimeout(() => {
+                      setRequestingItems(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(item.id);
+                        return newSet;
+                      });
+                    }, 2000);
                   }} 
-                  className="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-1.5 h-auto"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-1.5 h-auto disabled:opacity-50"
                   size="sm"
+                  disabled={requestingItems.has(item.id)}
                 >
-                  Request
+                  {requestingItems.has(item.id) ? "Requesting..." : "Request"}
                 </Button>
               </CardContent>
             </Card>

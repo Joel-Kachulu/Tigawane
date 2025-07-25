@@ -66,7 +66,18 @@ export default function ClaimFoodModal({ foodItem, isOpen, onClose, onClaimed }:
       onClaimed()
       onClose()
       setMessage("")
-      alert("Item request sent! The owner will be notified.")
+      
+      // Create a temporary success notification
+      const successDiv = document.createElement('div')
+      successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse'
+      successDiv.textContent = '✅ Request sent successfully! Owner will be notified.'
+      document.body.appendChild(successDiv)
+      
+      setTimeout(() => {
+        if (document.body.contains(successDiv)) {
+          document.body.removeChild(successDiv)
+        }
+      }, 4000)
     } catch (error: any) {
       console.error("Error claiming item:", error)
       alert(`Error sending request: ${error.message}`)
