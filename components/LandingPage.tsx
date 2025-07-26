@@ -98,7 +98,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               onClick={onGetStarted}
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-green-700 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
+              className="border-white text-green-700 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
             >
               See What’s Being Shared
             </Button>
@@ -318,7 +318,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               onClick={onGetStarted}
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-green-700 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
+              className="border-white text-green-700 font-bold text-xl px-10 py-6 shadow-lg rounded-full"
             >
               See What’s Being Shared
             </Button>
