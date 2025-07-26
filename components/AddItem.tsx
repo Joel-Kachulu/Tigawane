@@ -529,7 +529,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
               <div>
                 <Label htmlFor="quantity" className="text-base font-medium">
-                  How much? *
+                  Quantity *
                 </Label>
                 <Input
                   id="quantity"

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from "react"
@@ -301,13 +300,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                 )}
                 <CardHeader className="p-3 pb-2">
                   <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1 relative group">
-                      <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight group-hover:line-clamp-none">
+                    <div className="flex-1">
+                      <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">
                         {item.title}
                       </CardTitle>
-                      <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
-                        {item.title}
-                      </div>
                     </div>
                     <Badge 
                       variant={item.status === 'available' ? 'default' : 'secondary'}
@@ -324,11 +320,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </Badge>
                   </div>
                   {item.description && (
-                    <div className="relative group">
-                      <p className="text-gray-600 text-xs line-clamp-2 leading-tight group-hover:line-clamp-none">
+                    <div className="relative group/desc">
+                      <p className="text-gray-600 text-xs line-clamp-2 leading-tight">
                         {item.description}
                       </p>
-                      <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
+                      <div className="absolute hidden group-hover/desc:block bg-white/95 backdrop-blur-sm text-gray-800 text-xs p-3 rounded-lg shadow-lg border z-20 mt-1 whitespace-normal max-w-xs left-0">
                         {item.description}
                       </div>
                     </div>
@@ -348,21 +344,15 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
                     <MapPin className="h-4 w-4 shrink-0" />
-                    <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
-                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
-                      {item.pickup_location}
-                    </div>
+                    <span className="truncate">{item.pickup_location}</span>
                   </div>
 
-                  <div className="text-xs text-gray-500 relative group">
-                    <span className="truncate block group-hover:overflow-visible">
+                  <div className="text-xs text-gray-500">
+                    <span className="truncate block">
                       By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
                     </span>
-                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-nowrap">
-                      By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
-                    </div>
                   </div>
 
                   <div className="flex gap-1 pt-2">

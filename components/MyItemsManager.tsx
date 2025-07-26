@@ -384,7 +384,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                       disabled={markingShared === item.id}
                     >
                       <CheckCircle className="h-3 w-3" />
-                      {markingShared === item.id ? "..." : "Share"}
+                      {markingShared === item.id ? "..." : "Shared"}
                     </Button>
                   )}
                 </div>

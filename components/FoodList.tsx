@@ -171,44 +171,35 @@ export default function FoodList({ onClaimFood }: FoodListProps) {
               )}
               <CardHeader className="p-3 pb-2">
                 <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1 relative group">
-                    <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight group-hover:line-clamp-none">
+                  <div className="flex-1">
+                    <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">
                       {item.title}
                     </CardTitle>
-                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
-                      {item.title}
-                    </div>
                   </div>
                   <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs shrink-0">
                     {item.category}
                   </Badge>
                 </div>
                 {item.description && (
-                  <div className="relative group">
-                    <CardDescription className="line-clamp-2 text-xs leading-tight group-hover:line-clamp-none">
+                  <div className="relative group/desc">
+                    <CardDescription className="line-clamp-2 text-xs leading-tight">
                       {item.description}
                     </CardDescription>
-                    <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
+                    <div className="absolute hidden group-hover/desc:block bg-white/95 backdrop-blur-sm text-gray-800 text-xs p-3 rounded-lg shadow-lg border z-20 mt-1 whitespace-normal max-w-xs left-0">
                       {item.description}
                     </div>
                   </div>
                 )}
               </CardHeader>
               <CardContent className="p-3 pt-0 space-y-2">
-                <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
+                <div className="flex items-center gap-1 text-xs text-gray-600">
                   <MapPin className="h-4 w-4 shrink-0" />
-                  <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
-                  <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
-                    {item.pickup_location}
-                  </div>
+                  <span className="truncate">{item.pickup_location}</span>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
+                <div className="flex items-center gap-1 text-xs text-gray-600">
                   <User className="h-4 w-4 shrink-0" />
-                  <span className="truncate group-hover:overflow-visible">By {item.owner_name || "Anonymous"}</span>
-                  <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
-                    By {item.owner_name || "Anonymous"}
-                  </div>
+                  <span className="truncate">By {item.owner_name || "Anonymous"}</span>
                 </div>
 
                 <div className="flex justify-between items-center text-xs">
