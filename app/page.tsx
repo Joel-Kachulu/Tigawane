@@ -143,7 +143,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-green-600 via-green-500 to-emerald-500 shadow-lg border-b border-green-400/20 backdrop-blur-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-green-600 via-green-500 to-emerald-500 shadow-lg border-b border-green-400/20 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo Section with Animation */}
@@ -208,18 +208,18 @@ function AppContent() {
         <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
           {/* Mobile: Enhanced Navigation Menu */}
-          <div className="sm:hidden mb-12">
-            <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/40 rounded-2xl shadow-xl border border-green-100/50 p-6 backdrop-blur-sm">
+          <div className="sm:hidden mb-8">
+            <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/40 rounded-xl shadow-lg border border-green-100/50 p-6 backdrop-blur-sm">
               <div className="grid grid-cols-3 gap-6">
                 {/* Browse Section */}
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-0.5 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"></div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-0.5 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"></div>
                     <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Browse</span>
-                    <div className="w-6 h-0.5 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"></div>
+                    <div className="w-3 h-0.5 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"></div>
                   </div>
                   <div className="flex flex-col gap-3 w-full">
                     <Button
@@ -228,7 +228,7 @@ function AppContent() {
                       className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
                         currentTab === "browse-food" 
                           ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 border-blue-500" 
-                          : "bg-white/80 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
+                          : "bg-white/90 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
                       }`}
                       onClick={() => setCurrentTab("browse-food")}
                     >
@@ -244,7 +244,7 @@ function AppContent() {
                       className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
                         currentTab === "browse-items" 
                           ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 border-blue-500" 
-                          : "bg-white/80 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
+                          : "bg-white/90 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
                       }`}
                       onClick={() => setCurrentTab("browse-items")}
                     >
@@ -257,79 +257,55 @@ function AppContent() {
                   </div>
                 </div>
 
-                {/* Share Section with Enhanced Dropdown */}
+                {/* Share Section */}
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-0.5 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-0.5 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
                     <span className="text-xs font-bold text-orange-700 uppercase tracking-wider">Share</span>
-                    <div className="w-6 h-0.5 bg-gradient-to-r from-orange-600 to-orange-400 rounded-full"></div>
+                    <div className="w-3 h-0.5 bg-gradient-to-r from-orange-600 to-orange-400 rounded-full"></div>
                   </div>
-                  <div className="relative share-dropdown-container w-full">
+                  <div className="flex flex-col gap-3 w-full">
                     <Button
-                      variant="outline"
+                      variant={currentTab === "share-food" ? "default" : "outline"}
                       size="sm"
-                      className={`group relative flex items-center justify-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
-                        shareDropdownOpen || currentTab.startsWith('share-')
-                          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg border-orange-500 transform scale-105" 
-                          : "bg-white/80 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md hover:scale-102 border-orange-200"
+                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
+                        currentTab === "share-food" 
+                          ? "bg-gradient-to-br from-orange-600 to-orange-700 text-white shadow-lg transform scale-105 border-orange-500" 
+                          : "bg-white/90 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md hover:scale-102 border-orange-200"
                       }`}
-                      onClick={() => setShareDropdownOpen(!shareDropdownOpen)}
+                      onClick={() => setCurrentTab("share-food")}
                     >
-                      {(shareDropdownOpen || currentTab.startsWith('share-')) && (
+                      {currentTab === "share-food" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-600/20 animate-pulse"></div>
                       )}
-                      <Plus className={`h-4 w-4 transform group-hover:rotate-90 transition-all duration-300 relative z-10 ${shareDropdownOpen ? 'rotate-45' : ''}`} />
-                      <span className="text-xs font-semibold relative z-10">Share</span>
-                      <ChevronDown className={`h-4 w-4 transition-all duration-300 relative z-10 ${shareDropdownOpen ? 'rotate-180 scale-110' : 'group-hover:scale-110'}`} />
+                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">🍽️</span>
+                      <span className="text-xs font-semibold relative z-10">Food</span>
                     </Button>
-
-                    {shareDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-orange-200/50 p-3 z-50 animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            variant={currentTab === "share-food" ? "default" : "ghost"}
-                            size="sm"
-                            className={`group flex items-center justify-center gap-3 w-full px-4 py-3 text-xs rounded-lg transition-all duration-300 ${
-                              currentTab === "share-food" 
-                                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md" 
-                                : "hover:bg-orange-100 hover:shadow-sm hover:scale-105"
-                            }`}
-                            onClick={() => {
-                              setCurrentTab("share-food")
-                              setShareDropdownOpen(false)
-                            }}
-                          >
-                            <span className="text-base transform group-hover:scale-110 transition-transform duration-200">🍚</span>
-                            <span className="text-xs font-semibold">Share Food</span>
-                          </Button>
-                          <Button
-                            variant={currentTab === "share-items" ? "default" : "ghost"}
-                            size="sm"
-                            className={`group flex items-center justify-center gap-3 w-full px-4 py-3 text-xs rounded-lg transition-all duration-300 ${
-                              currentTab === "share-items" 
-                                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md" 
-                                : "hover:bg-orange-100 hover:shadow-sm hover:scale-105"
-                            }`}
-                            onClick={() => {
-                              setCurrentTab("share-items")
-                              setShareDropdownOpen(false)
-                            }}
-                          >
-                            <span className="text-base transform group-hover:scale-110 transition-transform duration-200">👕</span>
-                            <span className="text-xs font-semibold">Share Items</span>
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <Button
+                      variant={currentTab === "share-items" ? "default" : "outline"}
+                      size="sm"
+                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
+                        currentTab === "share-items" 
+                          ? "bg-gradient-to-br from-orange-600 to-orange-700 text-white shadow-lg transform scale-105 border-orange-500" 
+                          : "bg-white/90 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md hover:scale-102 border-orange-200"
+                      }`}
+                      onClick={() => setCurrentTab("share-items")}
+                    >
+                      {currentTab === "share-items" && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-600/20 animate-pulse"></div>
+                      )}
+                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">📦</span>
+                      <span className="text-xs font-semibold relative z-10">Items</span>
+                    </Button>
                   </div>
                 </div>
 
                 {/* Community Section */}
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-0.5 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-0.5 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
                     <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Community</span>
-                    <div className="w-6 h-0.5 bg-gradient-to-r from-purple-600 to-purple-400 rounded-full"></div>
+                    <div className="w-3 h-0.5 bg-gradient-to-r from-purple-600 to-purple-400 rounded-full"></div>
                   </div>
                   <div className="flex flex-col gap-3 w-full">
                     <Button
@@ -338,14 +314,14 @@ function AppContent() {
                       className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
                         currentTab === "collaborate" 
                           ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg transform scale-105 border-purple-500" 
-                          : "bg-white/80 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md hover:scale-102 border-purple-200"
+                          : "bg-white/90 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md hover:scale-102 border-purple-200"
                       }`}
                       onClick={() => setCurrentTab("collaborate")}
                     >
                       {currentTab === "collaborate" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-purple-600/20 animate-pulse"></div>
                       )}
-                      <Users className="h-4 w-4 transform group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">🤝</span>
                       <span className="text-xs font-semibold relative z-10">Collaborate</span>
                     </Button>
                     <Button
@@ -354,14 +330,14 @@ function AppContent() {
                       className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
                         currentTab === "my-items" 
                           ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg transform scale-105 border-purple-500" 
-                          : "bg-white/80 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md hover:scale-102 border-purple-200"
+                          : "bg-white/90 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md hover:scale-102 border-purple-200"
                       }`}
                       onClick={() => setCurrentTab("my-items")}
                     >
                       {currentTab === "my-items" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-purple-600/20 animate-pulse"></div>
                       )}
-                      <User className="h-4 w-4 transform group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">👤</span>
                       <span className="text-xs font-semibold relative z-10">My Items</span>
                     </Button>
                   </div>
@@ -538,7 +514,7 @@ function AppContent() {
                   <LocationSelector />
                 </div>
                 <div className="lg:col-span-4 order-1 lg:order-2">
-                  <ItemList key={`food-${refreshTrigger}`} itemType="food" collaborationId={null} onClaimItem={handleClaimItem} />
+                  <ItemList key={`food-${refreshTrigger}`} itemType="food" collaborationId={null} />
                 </div>
               </div>
             </div>
@@ -554,7 +530,7 @@ function AppContent() {
                   <LocationSelector />
                 </div>
                 <div className="lg:col-span-4 order-1 lg:order-2">
-                  <ItemList key={`items-${refreshTrigger}`} itemType="non-food" collaborationId={null} onClaimItem={handleClaimItem} />
+                  <ItemList key={`items-${refreshTrigger}`} itemType="non-food" collaborationId={null} />
                 </div>
               </div>
             </div>
@@ -589,6 +565,95 @@ function AppContent() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Footer with Navigation Shortcuts */}
+      <footer className="bg-white border-t border-gray-200 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {/* Browse Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Browse</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => setCurrentTab("browse-food")}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  🍚 Food Items
+                </button>
+                <button 
+                  onClick={() => setCurrentTab("browse-items")}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  👕 Other Items
+                </button>
+              </div>
+            </div>
+
+            {/* Share Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Share</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => setCurrentTab("share-food")}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  🍽️ Share Food
+                </button>
+                <button 
+                  onClick={() => setCurrentTab("share-items")}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  📦 Share Items
+                </button>
+              </div>
+            </div>
+
+            {/* Community Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Community</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => setCurrentTab("collaborate")}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  🤝 Collaborate
+                </button>
+                <button 
+                  onClick={() => setCurrentTab("my-items")}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  📋 My Items
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Quick Actions</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={handleGoHome}
+                  className="text-sm text-gray-600 hover:text-green-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  🏠 Go Home
+                </button>
+                <button 
+                  onClick={handleSignOut}
+                  className="text-sm text-gray-600 hover:text-red-600 transition-colors duration-200 flex items-center gap-2"
+                >
+                  🚪 Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+            <p className="text-sm text-gray-500">
+              © 2025 Tigawane. Share • Connect • Care
+            </p>
+          </div>
+        </div>
+      </footer>
 
       <ClaimFoodModal
         foodItem={selectedItem}

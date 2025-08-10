@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send, Users, Package, Utensils, Gift, ExternalLink, Clock, MapPin, Calendar } from "lucide-react"
+import { Send, Users, Package, Utensils, Gift, ExternalLink, Clock, MapPin, Calendar, MessageCircle, Loader2 } from "lucide-react"
 
 interface CollaborationMessage {
   id: string
@@ -59,6 +59,7 @@ export default function CollaborationChatModal({
   const [donationSummary, setDonationSummary] = useState<DonationSummary | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,7 +98,10 @@ export default function CollaborationChatModal({
   useEffect(() => {
     // Scroll to bottom when new messages arrive
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight
+      }
     }
   }, [messages])
 
@@ -171,7 +175,7 @@ export default function CollaborationChatModal({
     if (!collaborationId) return
 
     try {
-      // Get items for this collaboration
+      // Get items for this collaboration - show all items regardless of location
       const { data: donationData, error } = await supabase
         .from("items")
         .select("id, title, item_type, user_id, created_at")
@@ -312,220 +316,135 @@ export default function CollaborationChatModal({
     return date.toLocaleDateString()
   }
 
+  const handleNavigateToFullPage = () => {
+    setIsNavigating(true)
+    // Use window.open for faster navigation
+    const newWindow = window.open(`/collaborations/${collaborationId}`, '_blank')
+    if (newWindow) {
+      // Reset loading state after a short delay
+      setTimeout(() => setIsNavigating(false), 1000)
+    } else {
+      // Fallback to regular navigation if popup is blocked
+      window.location.href = `/collaborations/${collaborationId}`
+      setIsNavigating(false)
+    }
+  }
+
   if (!collaborationId) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
-        <DialogHeader className="border-b pb-4">
-          <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <Users className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="flex-1">
-              <div className="text-green-700">{collaborationTitle}</div>
-              <div className="flex items-center gap-3 mt-1">
-                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
-                  <Users className="h-3 w-3 mr-1" />
-                  {participants.length} participants
-                </Badge>
-                {donationSummary && donationSummary.total_count > 0 && (
-                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                    <Gift className="h-3 w-3 mr-1" />
-                    {donationSummary.total_count} donations
+      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+        <DialogHeader className="border-b pb-4 px-6 pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <DialogTitle className="text-xl font-bold text-gray-900">{collaborationTitle}</DialogTitle>
+                <p className="text-sm text-gray-600 mt-1">All collaboration items shown regardless of location</p>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2">
+                  <Badge variant="secondary" className="text-sm bg-blue-100 text-blue-800 px-3 py-1">
+                    <Users className="h-4 w-4 mr-2" />
+                    {participants.length} participants
                   </Badge>
-                )}
+                  {donationSummary && donationSummary.total_count > 0 && (
+                    <Badge variant="secondary" className="text-sm bg-green-100 text-green-800 px-3 py-1">
+                      <Gift className="h-4 w-4 mr-2" />
+                      {donationSummary.total_count} total donations
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
-          </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
-            {participants.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 mt-2">
-                <span className="text-xs font-medium">Participants:</span>
-                {participants.slice(0, 5).map((p, index) => (
-                  <span key={p.id} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {p.full_name || "Anonymous"}
-                  </span>
-                ))}
-                {participants.length > 5 && (
-                  <span className="text-xs text-gray-500">+{participants.length - 5} more</span>
-                )}
-              </div>
-            )}
-          </DialogDescription>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 flex-shrink-0"
+              onClick={handleNavigateToFullPage}
+              disabled={isNavigating}
+            >
+              {isNavigating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  <span>View Full Page</span>
+                </>
+              )}
+            </Button>
+          </div>
         </DialogHeader>
 
-        <div className="flex flex-1 gap-4 overflow-hidden flex-col lg:flex-row">
-          {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <ScrollArea className="flex-1 p-4 border rounded-lg bg-gray-50" ref={scrollAreaRef}>
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Chat Area */}
+          <div className="flex-1 px-6">
+            <ScrollArea className="h-96 p-4" ref={scrollAreaRef}>
               <div className="space-y-4">
-                {messages.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Users className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="font-medium text-gray-600 mb-2">No messages yet</h3>
-                    <p className="text-sm">Start the conversation and coordinate your collaboration!</p>
-                  </div>
-                ) : (
-                  messages.map((message, index) => {
-                    const isOwnMessage = message.sender_id === user?.id
-                    const showSender = index === 0 || messages[index - 1].sender_id !== message.sender_id
-                    
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
-                      >
-                        <div className={`max-w-[75%] ${isOwnMessage ? "order-2" : "order-1"}`}>
-                          {showSender && !isOwnMessage && (
-                            <div className="text-xs font-medium text-gray-600 mb-1 px-3">
-                              {message.sender_name}
-                            </div>
-                          )}
-                          <div
-                            className={`p-3 rounded-2xl shadow-sm ${
-                              isOwnMessage 
-                                ? "bg-green-600 text-white rounded-br-md" 
-                                : "bg-white text-gray-900 border rounded-bl-md"
-                            }`}
-                          >
-                            <div className="text-sm leading-relaxed">{message.message}</div>
-                            <div className={`text-xs mt-2 flex items-center gap-1 ${
-                              isOwnMessage ? "text-green-100" : "text-gray-500"
-                            }`}>
-                              <Clock className="h-3 w-3" />
-                              {formatTime(message.created_at)}
-                            </div>
-                          </div>
-                        </div>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 ${
+                      message.sender_id === user?.id ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {message.sender_id !== user?.id && (
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium">
+                        {message.sender_name?.charAt(0) || "U"}
                       </div>
-                    )
-                  })
+                    )}
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        message.sender_id === user?.id
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-100 text-gray-900"
+                      }`}
+                    >
+                      <p className="text-xs font-medium mb-1 opacity-80">
+                        {message.sender_id === user?.id ? "You" : (message.sender_name || "Unknown User")}
+                      </p>
+                      <p className="text-sm">{message.message}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {formatTime(message.created_at)}
+                      </p>
+                    </div>
+                    {message.sender_id === user?.id && (
+                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-sm font-medium text-white">
+                        {message.sender_name?.charAt(0) || "U"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {messages.length === 0 && (
+                  <div className="text-center text-gray-500 py-8">
+                    <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No messages yet. Start the conversation!</p>
+                  </div>
                 )}
               </div>
             </ScrollArea>
+          </div>
 
-            {/* Message Input */}
-            <div className="flex gap-2 mt-4 p-2 bg-white border rounded-lg">
+          {/* Message Input */}
+          <div className="border-t p-6">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }} className="flex gap-3">
               <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
                 placeholder="Type your message..."
+                className="flex-1"
                 disabled={loading}
-                className="border-0 focus-visible:ring-0 shadow-none"
               />
-              <Button 
-                onClick={sendMessage} 
-                disabled={loading || !newMessage.trim()} 
-                size="icon"
-                className="bg-green-600 hover:bg-green-700 flex-shrink-0"
-              >
-                <Send className="h-4 w-4" />
+              <Button type="submit" disabled={loading || !newMessage.trim()}>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
-            </div>
-          </div>
-
-          {/* Donations Sidebar */}
-          <div className="w-full lg:w-80 border-t lg:border-l lg:border-t-0 pt-4 lg:pt-0 lg:pl-4 space-y-4 bg-gray-50 lg:bg-transparent">
-            <div className="sticky top-0">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Gift className="h-4 w-4 text-green-600" />
-                Available Donations
-              </h3>
-              
-              {donationSummary && donationSummary.total_count > 0 ? (
-                <div className="space-y-4">
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {donationSummary.food_count > 0 && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                        <div className="flex items-center justify-center gap-1 text-green-700 mb-1">
-                          <Utensils className="h-4 w-4" />
-                          <span className="text-sm font-medium">Food</span>
-                        </div>
-                        <div className="text-lg font-bold text-green-800">{donationSummary.food_count}</div>
-                      </div>
-                    )}
-                    {donationSummary.item_count > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                        <div className="flex items-center justify-center gap-1 text-blue-700 mb-1">
-                          <Package className="h-4 w-4" />
-                          <span className="text-sm font-medium">Items</span>
-                        </div>
-                        <div className="text-lg font-bold text-blue-800">{donationSummary.item_count}</div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Recent Donations List */}
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700">Recent donations:</h4>
-                    <ScrollArea className="h-64">
-                      <div className="space-y-2 pr-2">
-                        {donationSummary.recent_donations.map((donation) => (
-                          <div key={donation.id} className="bg-white border rounded-lg p-3 hover:shadow-sm transition-shadow">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <h5 className="font-medium text-sm text-gray-900 truncate">{donation.title}</h5>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge 
-                                    variant="secondary" 
-                                    className={`text-xs ${
-                                      donation.item_type === 'food' 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : 'bg-blue-100 text-blue-800'
-                                    }`}
-                                  >
-                                    {donation.item_type === 'food' ? (
-                                      <Utensils className="h-3 w-3 mr-1" />
-                                    ) : (
-                                      <Package className="h-3 w-3 mr-1" />
-                                    )}
-                                    {donation.item_type}
-                                  </Badge>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  by {donation.user_name} • {formatTime(donation.created_at)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-
-                  {/* View All Link */}
-                  <div className="text-center pt-4 border-t">
-                    <Button
-                      asChild
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
-                    >
-                      <a 
-                        href={`/collaborations/${collaborationId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        View Full Collaboration Page
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Gift className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <p className="text-sm">No donations yet</p>
-                  <p className="text-xs mt-1">Share items to get started!</p>
-                </div>
-              )}
-            </div>
+            </form>
           </div>
         </div>
       </DialogContent>
