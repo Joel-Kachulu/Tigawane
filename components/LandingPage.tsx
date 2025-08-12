@@ -342,7 +342,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <h3 className="font-semibold mb-4">Contact</h3>
               <div className="space-y-2 text-gray-400">
                 <p>📱 WhatsApp: +265 986 445 261</p>
-                <p>📧 hello.tigawane.org@gmail.com</p>
+                <p>📧 hello.tigawane@gmail.com</p>
                 <p>🌍 Malawi-based</p>
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <div>
               <h3 className="font-semibold mb-4">Community</h3>
               <div className="space-y-2 text-gray-400">
-                <p>💬 Facebook Page: <a href="https://www.facebook.com/tigawane" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">Tigawane</a></p>
+                <p>💬 Facebook Page: <a href="web.facebook.com/profile.php?id=61577024777762" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">Tigawane</a></p>
               </div>  
             </div>
 
