@@ -15,7 +15,7 @@ import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2,
 import ClaimFoodModal from "./ClaimFoodModal"
 import EditItemModal from "./EditItemModal"
 
-interface Item {
+interface ItemRecord {
   id: string
   title: string
   description: string | null
@@ -47,10 +47,10 @@ interface ItemListProps {
 export default function ItemList({ itemType, collaborationId }: ItemListProps) {
   const { user } = useAuth()
   const { selectedLocation, locationRadius } = useLocation()
-  const [items, setItems] = useState<Item[]>([])
+  const [items, setItems] = useState<ItemRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-  const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ItemRecord | null>(null)
+  const [editingItem, setEditingItem] = useState<ItemRecord | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -192,7 +192,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
     }
   }
 
-  const fetchRequestCounts = async (ownerItems: Item[]) => {
+  const fetchRequestCounts = async (ownerItems: ItemRecord[]) => {
     try {
       const itemIds = ownerItems.map(item => item.id)
       if (itemIds.length === 0) return
@@ -331,190 +331,171 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         </Card>
       ) : (
         <>
-          {/* Mobile: Enhanced Card Layout */}
-          <div className="lg:hidden">
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
-              {filteredItems.map((item) => (
-                <div key={item.id} className="flex-shrink-0 w-[300px]">
-                  <Card className="group overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200 w-full h-full relative">
-                    {/* Visual Enhancement: Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10"></div>
-                    
-                    {/* Visual Enhancement: Corner Accent */}
-                    <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    <div className="relative h-40 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100">
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.title}
-                          className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><span>Image not available</span></div>';
-                          }}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400">
-                          <div className="text-center">
-                            <ImageIcon className="h-8 w-8 mx-auto mb-1 text-gray-300" />
-                            <span className="text-xs">No image</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Visual Enhancement: Status Indicator */}
-                      <div className="absolute top-2 left-2">
-                        <div className={`w-3 h-3 rounded-full border-2 border-white shadow-sm ${
-                          item.status === 'available' ? 'bg-green-500' :
-                          item.status === 'requested' ? 'bg-yellow-500' :
-                          item.status === 'reserved' ? 'bg-blue-500' :
-                          'bg-gray-500'
-                        }`}></div>
+          {/* Mobile: Vertical Feed Layout */}
+          <div className="lg:hidden space-y-4">
+            {filteredItems.map((item) => (
+              <Card key={item.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl">
+                <div className="flex">
+                  {/* Image Section */}
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.title}
+                        className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-xs">No image</div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        <ImageIcon className="h-6 w-6 text-gray-300" />
                       </div>
-                      
-                      {/* Visual Enhancement: Distance Badge */}
-                      {item.distance !== undefined && (
-                        <div className="absolute top-2 right-2">
-                          <div className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs px-2 py-1 rounded-full font-medium shadow-sm">
-                            {formatDistance(item.distance)}
-                          </div>
-                        </div>
-                      )}
+                    )}
+                    
+                    {/* Status Badge */}
+                    <div className="absolute top-1 left-1">
+                      <div className={`w-3 h-3 rounded-full border-2 border-white shadow-sm ${
+                        item.status === 'available' ? 'bg-green-500' :
+                        item.status === 'requested' ? 'bg-yellow-500' :
+                        item.status === 'reserved' ? 'bg-blue-500' :
+                        'bg-gray-500'
+                      }`}></div>
                     </div>
-                    <CardHeader className="p-3 pb-2">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 relative group">
-                          <CardTitle className="text-sm font-semibold flex items-center gap-1 line-clamp-2 group-hover:line-clamp-none">
+                    
+                    {/* Distance Badge */}
+                    {item.distance !== undefined && (
+                      <div className="absolute top-1 right-1">
+                        <div className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs px-1.5 py-0.5 rounded-full font-medium shadow-sm">
+                          {formatDistance(item.distance)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Content Section */}
+                  <div className="flex-1 p-3 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      {/* Title and Category */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-base text-gray-900 line-clamp-1 group-hover:text-green-700 transition-colors">
                             {item.title}
                             {requestCounts[item.id] > 0 && (
                               <span className="ml-1 inline-flex items-center justify-center px-1 py-0.5 rounded-full text-xs font-semibold bg-yellow-200 text-yellow-800 animate-pulse">
                                 {requestCounts[item.id]}
                               </span>
                             )}
-                          </CardTitle>
-                          <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
-                            {item.title}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-1 shrink-0">
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                          </h3>
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs mt-1">
                             {item.category}
                           </Badge>
-                          <Badge 
-                            variant={item.status === 'available' ? 'default' : 'secondary'}
-                            className={`text-xs ${
-                              item.status === 'available' ? 'bg-green-100 text-green-800' :
-                              item.status === 'requested' ? 'bg-yellow-100 text-yellow-800' :
-                              item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {item.status === 'available' && requestCounts[item.id] > 0 
-                              ? `Requested (${requestCounts[item.id]})` 
-                              : item.status}
-                          </Badge>
                         </div>
+                        <Badge 
+                          variant={item.status === 'available' ? 'default' : 'secondary'}
+                          className={`text-xs ${
+                            item.status === 'available' ? 'bg-green-100 text-green-800' :
+                            item.status === 'requested' ? 'bg-yellow-100 text-yellow-800' :
+                            item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {item.status === 'available' && requestCounts[item.id] > 0 
+                            ? `Requested (${requestCounts[item.id]})` 
+                            : item.status}
+                        </Badge>
                       </div>
-                      <div className="relative group">
-                        <CardDescription className="line-clamp-2 text-xs leading-tight group-hover:line-clamp-none">
-                          {item.description}
-                        </CardDescription>
-                        <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
-                          {item.description}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2 p-3 pt-0">
-                      <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
-                        <MapPin className="h-4 w-4 shrink-0" />
-                        <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
-                        <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
-                          {item.pickup_location}
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-xs">
+                      
+                      {/* Key Info Row */}
+                      <div className="flex items-center gap-3 text-xs text-gray-600">
                         <div className="flex items-center gap-1">
-                          <Package className="h-4 w-4" />
-                          <span className="font-medium">{item.quantity}</span>
+                          <Package className="h-3 w-3" />
+                          <span>{item.quantity}</span>
                         </div>
                         {item.condition && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0.5">
                             {item.condition}
                           </Badge>
                         )}
+                        {item.expiry_date && (
+                          <div className="flex items-center gap-1 text-orange-600">
+                            <CalendarDays className="h-3 w-3" />
+                            <span>Expires {new Date(item.expiry_date).toLocaleDateString()}</span>
+                          </div>
+                        )}
                       </div>
-
-                      {item.expiry_date && (
-                        <div className="flex items-center gap-1 text-orange-600 text-xs">
-                          <CalendarDays className="h-4 w-4" />
-                          <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
-                        </div>
+                      
+                      {/* Description */}
+                      <p className="text-sm text-gray-600 line-clamp-1">
+                        {item.description}
+                      </p>
+                      
+                      {/* Location and Owner */}
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{item.pickup_location}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 mt-2">
+                      {user && user.id !== item.user_id && item.status === 'available' && (
+                        <Button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setRequestingItems(prev => new Set(prev).add(item.id));
+                            setSelectedItem(item);
+                            
+                            setTimeout(() => {
+                              setRequestingItems(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(item.id);
+                                return newSet;
+                              });
+                            }, 2000);
+                          }}
+                          className="flex-1 text-sm font-semibold py-2.5 px-3 min-h-[44px] bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 rounded-xl transition-all duration-200 touch-target"
+                          disabled={requestingItems.has(item.id)}
+                        >
+                          <Plus className="h-4 w-4 mr-1.5" />
+                          {requestingItems.has(item.id) ? "Requesting..." : "Claim"}
+                        </Button>
                       )}
-
-                      <div className="text-xs text-gray-500">
-                        <span className="block">
-                          By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <div className="flex gap-3 pt-3">
-                        {user && user.id !== item.user_id && item.status === 'available' && (
+                      
+                      {user && user.id === item.user_id && (
+                        <>
                           <Button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setRequestingItems(prev => new Set(prev).add(item.id));
-                              setSelectedItem(item);
-                              
-                              // Remove loading state after a delay
-                              setTimeout(() => {
-                                setRequestingItems(prev => {
-                                  const newSet = new Set(prev);
-                                  newSet.delete(item.id);
-                                  return newSet;
-                                });
-                              }, 2000);
-                            }}
-                            className="flex-1 text-sm font-semibold py-3 px-4 min-h-[48px] bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 rounded-xl transform hover:scale-105 transition-all duration-200 touch-target-lg"
-                            disabled={requestingItems.has(item.id)}
+                            onClick={() => setEditingItem(item)}
+                            variant="outline"
+                            className="flex-1 text-sm font-semibold py-2.5 px-3 min-h-[44px] border border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-xl transition-all duration-200 touch-target"
                           >
-                            <Plus className="h-5 w-5 mr-2" />
-                            {requestingItems.has(item.id) ? "Requesting..." : "Request"}
+                            <Edit className="h-4 w-4 mr-1.5" />
+                            Edit
                           </Button>
-                        )}
-                        
-                        {user && user.id === item.user_id && (
-                          <>
-                            <Button 
-                              onClick={() => setEditingItem(item)}
-                              variant="outline"
-                              className="flex-1 text-sm font-semibold py-3 px-4 min-h-[48px] border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-xl transform hover:scale-105 transition-all duration-200 touch-target-lg"
-                            >
-                              <Edit className="h-5 w-5 mr-2" />
-                              Edit
-                            </Button>
-                            <Button 
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete this item?')) {
-                                  handleDeleteItem(item.id)
-                                }
-                              }}
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700 border-2 border-red-300 hover:border-red-500 hover:bg-red-50 text-sm font-semibold py-3 px-4 min-h-[48px] min-w-[48px] rounded-xl transform hover:scale-105 transition-all duration-200 touch-target-lg"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                          <Button 
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this item?')) {
+                                handleDeleteItem(item.id)
+                              }
+                            }}
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700 border border-red-300 hover:border-red-500 hover:bg-red-50 text-sm font-semibold py-2.5 px-3 min-h-[44px] min-w-[44px] rounded-xl transition-all duration-200 touch-target"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </Card>
+            ))}
           </div>
 
           {/* Desktop: Grid Layout */}
@@ -731,7 +712,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
 
       {editingItem && (
         <EditItemModal
-          item={editingItem}
+          item={{
+            ...editingItem,
+            expiry_date: editingItem.expiry_date || null
+          }}
           isOpen={!!editingItem}
           onClose={() => setEditingItem(null)}
           onItemUpdated={handleItemUpdated}
