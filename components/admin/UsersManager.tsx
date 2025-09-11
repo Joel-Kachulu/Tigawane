@@ -26,7 +26,6 @@ interface UserStats {
 
 export default function UsersManager() {
   const [users, setUsers] = useState<UserStats[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<UserStats[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
@@ -36,44 +35,57 @@ export default function UsersManager() {
     isPermanent: false,
     suspendedUntil: "",
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const usersPerPage = 15
 
   useEffect(() => {
     fetchUsers()
-  }, [])
-
-  useEffect(() => {
-    filterUsers()
-  }, [users, searchTerm])
+  }, [currentPage, searchTerm])
 
   const fetchUsers = async () => {
     try {
-      // Get user stats using the function we created
-      const { data: userStats, error } = await supabase.rpc("get_user_stats")
+      setLoading(true)
+      
+      // Get user stats with pagination
+      const { data: userStats, error, count } = await supabase
+        .rpc("get_user_stats", {}, { count: 'exact' })
+        .range((currentPage - 1) * usersPerPage, currentPage * usersPerPage - 1)
 
       if (error) throw error
 
-      // Check for suspensions
-      const usersWithSuspensions = await Promise.all(
-        (userStats || []).map(async (user) => {
-          const { data: suspension } = await supabase
-            .from("user_suspensions")
-            .select("reason, suspended_until, is_permanent")
-            .eq("user_id", user.user_id)
-            .eq("is_permanent", true)
-            .or("suspended_until.gte." + new Date().toISOString())
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single()
+      // Get all user IDs for suspension check
+      const userIds = userStats?.map(user => user.user_id) || []
+      
+      // Get suspensions in one query
+      const { data: suspensions } = await supabase
+        .from("user_suspensions")
+        .select("user_id, reason, suspended_until, is_permanent")
+        .in("user_id", userIds)
+        .or(`is_permanent.eq.true,suspended_until.gte.${new Date().toISOString()}`)
+        .order("created_at", { ascending: false })
 
-          return {
-            ...user,
-            is_suspended: !!suspension,
-            suspension_reason: suspension?.reason || null,
-          }
-        }),
-      )
+      // Create suspension map
+      const suspensionMap = new Map()
+      suspensions?.forEach(suspension => {
+        if (!suspensionMap.has(suspension.user_id)) {
+          suspensionMap.set(suspension.user_id, suspension)
+        }
+      })
+
+      // Combine user stats with suspension info
+      const usersWithSuspensions = userStats?.map(user => ({
+        ...user,
+        is_suspended: suspensionMap.has(user.user_id),
+        suspension_reason: suspensionMap.get(user.user_id)?.reason || null,
+      })) || []
 
       setUsers(usersWithSuspensions)
+      setTotalUsers(count || 0)
+      setTotalPages(Math.ceil((count || 0) / usersPerPage))
     } catch (error) {
       console.error("Error fetching users:", error)
     } finally {
@@ -81,22 +93,10 @@ export default function UsersManager() {
     }
   }
 
-  const filterUsers = () => {
-    let filtered = users
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (user) =>
-          user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    }
-
-    // Sort by total items descending
-    filtered.sort((a, b) => b.total_items - a.total_items)
-
-    setFilteredUsers(filtered)
-  }
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   const handleSuspendUser = async () => {
     if (!selectedUser) return
@@ -177,7 +177,7 @@ export default function UsersManager() {
 
           {/* Users List */}
           <div className="space-y-4">
-            {filteredUsers.map((user) => (
+            {users.map((user) => (
               <Card key={user.user_id} className={`${user.is_suspended ? "border-red-200 bg-red-50" : ""}`}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
@@ -267,7 +267,32 @@ export default function UsersManager() {
             ))}
           </div>
 
-          {filteredUsers.length === 0 && (
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+
+          {users.length === 0 && !loading && (
             <div className="text-center py-12">
               <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>

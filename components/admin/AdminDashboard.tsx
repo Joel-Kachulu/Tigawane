@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAdminAuth } from "@/contexts/AdminAuthContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,13 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { BarChart3, Users, Package, Flag, Settings, TrendingUp, LogOut, Shield } from "lucide-react"
-import ListingsManager from "./ListingsManager"
-import ReportsManager from "./ReportsManager"
-import CategoriesManager from "./CategoriesManager"
-import UsersManager from "./UsersManager"
-import Analytics from "./Analytics"
 import AdminLoading from "./AdminLoading"
-import StoriesManager from "./StoriesManager"
+import { StoriesSkeleton } from "./AdminSkeleton"
+
+// Lazy load admin components for better performance
+const ListingsManager = lazy(() => import("./ListingsManager"))
+const ReportsManager = lazy(() => import("./ReportsManager"))
+const CategoriesManager = lazy(() => import("./CategoriesManager"))
+const UsersManager = lazy(() => import("./UsersManager"))
+const Analytics = lazy(() => import("./Analytics"))
+const StoriesManager = lazy(() => import("./StoriesManager"))
 
 interface DashboardStats {
   totalItems: number
@@ -45,36 +48,49 @@ export default function AdminDashboard() {
 
   const fetchDashboardStats = async () => {
     try {
+      // Use Promise.all to run all queries in parallel for faster loading
+      const [
+        totalItemsResult,
+        activeItemsResult,
+        totalUsersResult,
+        pendingReportsResult,
+        weeklyItemsResult,
+        categoryDataResult
+      ] = await Promise.all([
       // Get total items
-      const { count: totalItems } = await supabase.from("items").select("*", { count: "exact", head: true })
+        supabase.from("items").select("*", { count: "exact", head: true }),
 
       // Get active items
-      const { count: activeItems } = await supabase
+        supabase
         .from("items")
         .select("*", { count: "exact", head: true })
-        .in("status", ["available", "requested"])
+          .in("status", ["available", "requested"]),
 
       // Get total users
-      const { count: totalUsers } = await supabase.from("profiles").select("*", { count: "exact", head: true })
+        supabase.from("profiles").select("*", { count: "exact", head: true }),
 
       // Get pending reports
-      const { count: pendingReports } = await supabase
+        supabase
         .from("reports")
         .select("*", { count: "exact", head: true })
-        .eq("status", "pending")
+          .eq("status", "pending"),
 
       // Get weekly items (last 7 days)
+        (() => {
       const weekAgo = new Date()
       weekAgo.setDate(weekAgo.getDate() - 7)
-      const { count: weeklyItems } = await supabase
+          return supabase
         .from("items")
         .select("*", { count: "exact", head: true })
         .gte("created_at", weekAgo.toISOString())
+        })(),
 
-      // Get top category
-      const { data: categoryData } = await supabase.from("items").select("category").limit(1000)
+        // Get top category (limit to 500 for better performance)
+        supabase.from("items").select("category").limit(500)
+      ])
 
-      const categoryCounts = categoryData?.reduce((acc: any, item) => {
+      // Process category data
+      const categoryCounts = categoryDataResult.data?.reduce((acc: any, item) => {
         acc[item.category] = (acc[item.category] || 0) + 1
         return acc
       }, {})
@@ -85,11 +101,11 @@ export default function AdminDashboard() {
       )
 
       setStats({
-        totalItems: totalItems || 0,
-        activeItems: activeItems || 0,
-        totalUsers: totalUsers || 0,
-        pendingReports: pendingReports || 0,
-        weeklyItems: weeklyItems || 0,
+        totalItems: totalItemsResult.count || 0,
+        activeItems: activeItemsResult.count || 0,
+        totalUsers: totalUsersResult.count || 0,
+        pendingReports: pendingReportsResult.count || 0,
+        weeklyItems: weeklyItemsResult.count || 0,
         topCategory: topCategory || "N/A",
       })
     } catch (error) {
@@ -225,27 +241,39 @@ export default function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="listings">
+            <Suspense fallback={<AdminLoading />}>
             <ListingsManager onStatsUpdate={fetchDashboardStats} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="reports">
+            <Suspense fallback={<AdminLoading />}>
             <ReportsManager onStatsUpdate={fetchDashboardStats} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="categories">
+            <Suspense fallback={<AdminLoading />}>
             <CategoriesManager />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="users">
+            <Suspense fallback={<AdminLoading />}>
             <UsersManager />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="analytics">
+            <Suspense fallback={<AdminLoading />}>
             <Analytics stats={stats} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="stories">
+            <Suspense fallback={<StoriesSkeleton />}>
             <StoriesManager />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </main>

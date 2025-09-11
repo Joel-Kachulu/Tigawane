@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useLocation } from "@/contexts/LocationContext"
-import { formatDistance } from "@/lib/locationService"
+import { formatDistance, calculateDistance } from "@/lib/locationService"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,7 +20,7 @@ interface Item {
   title: string
   description: string | null
   category: string
-  item_type: string
+  item_type: "food" | "non-food"
   quantity: string
   condition?: string | null
   expiry_date?: string | null
@@ -63,8 +63,15 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
   const itemsPerPage = 12
 
   const categories = itemType === "food" 
-    ? ["Fruits", "Vegetables", "Meat", "Dairy", "Bread", "Snacks", "Beverages", "Other"]
-    : ["Clothing", "Electronics", "Furniture", "Books", "Household", "Sports", "Tools", "Other"]
+    ? ["fruits", "vegetables", "meat", "dairy", "grains", "prepared", "other"]
+    : ["clothing", "shoes", "household", "electronics", "books", "toys", "baby-items", "other"]
+
+  // Helper function to format category display names
+  const formatCategoryName = (category: string) => {
+    if (category === "baby-items") return "Baby Items";
+    if (category === "prepared") return "Prepared Food";
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  };
 
   useEffect(() => {
     fetchItems(true)
@@ -94,6 +101,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       }
 
       if (categoryFilter !== "all") {
+        console.log(`🔍 Filtering by category: ${categoryFilter}`)
         query = query.eq("category", categoryFilter)
       }
 
@@ -101,89 +109,57 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         query = query.eq("status", statusFilter)
       }
 
-      // Add location-based filtering if location is selected
-      if (selectedLocation && selectedLocation.latitude && selectedLocation.longitude) {
-        // Use the database function to get items within radius
-        const { data: locationData, error: locationError } = await supabase
-          .rpc('get_items_within_radius', {
-            user_lat: selectedLocation.latitude,
-            user_lon: selectedLocation.longitude,
-            radius_km: locationRadius
-          })
-          .eq('item_type', itemType)
-          .order('distance', { ascending: true });
-
-        if (locationError) {
-          console.error('Location query error:', locationError);
-          // Fallback to regular query
-          const { data, error } = await query
-            .range(pageToFetch * itemsPerPage, (pageToFetch + 1) * itemsPerPage - 1);
-          
-          if (error) throw error;
-          setItems(reset ? data || [] : [...items, ...(data || [])]);
-          setHasMore((data || []).length === itemsPerPage);
-          return;
-        }
-
-        // Filter the location results by other criteria
-        let filteredData = locationData || [];
-        
-        if (collaborationId) {
-          filteredData = filteredData.filter(item => item.collaboration_id === collaborationId);
-        } else {
-          filteredData = filteredData.filter(item => !item.collaboration_id);
-        }
-
-        if (searchTerm) {
-          filteredData = filteredData.filter(item => 
-            item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-        }
-
-        if (categoryFilter !== "all") {
-          filteredData = filteredData.filter(item => item.category === categoryFilter);
-        }
-
-        if (statusFilter !== "all") {
-          filteredData = filteredData.filter(item => item.status === statusFilter);
-        }
-
-        // Apply pagination
-        const startIndex = pageToFetch * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const paginatedData = filteredData.slice(startIndex, endIndex);
-
-        setItems(reset ? paginatedData : [...items, ...paginatedData]);
-        setHasMore(endIndex < filteredData.length);
-        return;
-      }
-
-      // Regular query without location filtering
+      // Execute the query first
       const { data, error } = await query
         .range(pageToFetch * itemsPerPage, (pageToFetch + 1) * itemsPerPage - 1)
 
       if (error) throw error
 
-      console.log(`✅ Successfully fetched ${data?.length || 0} ${itemType} items`)
+      let filteredData = data || [];
 
-      if (reset) {
-        setItems(data || [])
-        setCurrentPage(0)
-      } else {
-        setItems(prev => [...prev, ...(data || [])])
+      // Add location-based filtering if location is selected (client-side)
+      if (selectedLocation && selectedLocation.latitude && selectedLocation.longitude) {
+        console.log(`🔍 Filtering by location: ${selectedLocation.latitude}, ${selectedLocation.longitude} (${locationRadius}km radius)`);
+        
+        filteredData = filteredData.filter(item => {
+          if (!item.latitude || !item.longitude) return false;
+          
+          const distance = calculateDistance(
+            selectedLocation.latitude,
+            selectedLocation.longitude,
+            item.latitude,
+            item.longitude
+          );
+          
+          // Add distance to item for display
+          item.distance = distance;
+          
+          return distance <= locationRadius;
+        });
+
+        // Sort by distance
+        filteredData.sort((a, b) => (a.distance || 0) - (b.distance || 0));
       }
 
-      setHasMore((data?.length || 0) === itemsPerPage)
+      console.log(`✅ Successfully fetched ${filteredData.length} ${itemType} items`)
+
+      if (reset) {
+        setItems(filteredData)
+        setCurrentPage(0)
+      } else {
+        setItems(prev => [...prev, ...filteredData])
+      }
+
+      setHasMore(filteredData.length === itemsPerPage)
 
       // Fetch user profiles for items
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map(item => item.user_id))]
+      if (filteredData && filteredData.length > 0) {
+        const userIds = [...new Set(filteredData.map(item => item.user_id))]
         await fetchProfiles(userIds)
         
         // Fetch request counts for owner's items
         if (user) {
-          await fetchRequestCounts(data.filter(item => item.user_id === user.id))
+          await fetchRequestCounts(filteredData.filter(item => item.user_id === user.id))
         }
       }
     } catch (error) {
@@ -314,7 +290,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
             {categories.map(category => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
+              <SelectItem key={category} value={category}>{formatCategoryName(category)}</SelectItem>
             ))}
           </SelectContent>
         </Select>

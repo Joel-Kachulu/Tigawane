@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Search, Edit, Trash2, MapPin, Calendar, User, Package, AlertCircle } from "lucide-react"
-import Image from "next/image"
+import OptimizedImage from "./OptimizedImage"
 
 interface Item {
   id: string
@@ -52,74 +52,125 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
     quantity: "",
     pickup_location: "",
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const itemsPerPage = 20
 
   useEffect(() => {
     fetchItems()
-  }, [])
-
-  useEffect(() => {
-    filterItems()
-  }, [items, searchTerm, categoryFilter, locationFilter, statusFilter])
+  }, [currentPage, searchTerm, categoryFilter, locationFilter, statusFilter])
 
   const fetchItems = async () => {
     try {
-      const { data: itemsData, error } = await supabase
+      setLoading(true)
+      console.log("🔍 Starting to fetch items...")
+      
+      // Build query with filters - simplified without join
+      let query = supabase
         .from("items")
-        .select("*")
+        .select("*", { count: 'exact' })
         .order("created_at", { ascending: false })
 
-      if (error) throw error
+      // Apply filters
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      }
+      
+      if (categoryFilter !== "all") {
+        query = query.eq("category", categoryFilter)
+      }
+      
+      if (locationFilter) {
+        query = query.ilike("pickup_location", `%${locationFilter}%`)
+      }
+      
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter)
+      }
 
-      // Get owner information
-      const userIds = [...new Set(itemsData?.map((item) => item.user_id) || [])]
-      const { data: profilesData } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds)
+      // Apply pagination
+      const from = (currentPage - 1) * itemsPerPage
+      const to = from + itemsPerPage - 1
+      query = query.range(from, to)
 
-      const profilesMap = new Map()
-      profilesData?.forEach((profile) => {
-        profilesMap.set(profile.id, profile)
-      })
+      const { data: itemsData, error, count } = await query
 
-      const itemsWithOwners =
-        itemsData?.map((item) => ({
+      console.log("📊 Query result:", { itemsData: itemsData?.length, error, count })
+
+      if (error) {
+        console.error("Supabase error:", error)
+        throw new Error(`Database error: ${error.message || 'Unknown database error'}`)
+      }
+
+      // Fetch user profiles separately to avoid join issues
+      const userIds = [...new Set(itemsData?.map(item => item.user_id) || [])]
+      let profilesMap: Record<string, any> = {}
+      
+      console.log("👥 User IDs to fetch:", userIds)
+      
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", userIds)
+        
+        console.log("👥 Profiles result:", { profilesData: profilesData?.length, profilesError })
+        
+        if (profilesError) {
+          console.warn("Error fetching profiles:", profilesError)
+        } else {
+          profilesMap = profilesData?.reduce((acc, profile) => {
+            acc[profile.id] = profile
+            return acc
+          }, {} as Record<string, any>) || {}
+        }
+      }
+
+      // Transform data to include owner info
+      const itemsWithOwners = itemsData?.map((item: any) => ({
           ...item,
-          owner_name: profilesMap.get(item.user_id)?.full_name || "Unknown",
-          owner_email: profilesMap.get(item.user_id)?.email || "Unknown",
+        owner_name: profilesMap[item.user_id]?.full_name || "Unknown",
+        owner_email: profilesMap[item.user_id]?.email || "Unknown",
         })) || []
 
+      // Debug image URLs
+      console.log("🖼️ Items with image URLs:", itemsWithOwners.map(item => ({
+        id: item.id,
+        title: item.title,
+        image_url: item.image_url,
+        hasImage: !!item.image_url
+      })))
+
       setItems(itemsWithOwners)
+      setTotalItems(count || 0)
+      setTotalPages(Math.ceil((count || 0) / itemsPerPage))
+      
+      console.log("✅ Successfully fetched items:", {
+        itemsCount: itemsWithOwners.length,
+        totalItems: count,
+        totalPages: Math.ceil((count || 0) / itemsPerPage)
+      })
     } catch (error) {
       console.error("Error fetching items:", error)
+      console.error("Error type:", typeof error)
+      console.error("Error message:", error instanceof Error ? error.message : String(error))
+      console.error("Full error object:", JSON.stringify(error, null, 2))
+      
+      setItems([])
+      setTotalItems(0)
+      setTotalPages(0)
     } finally {
       setLoading(false)
     }
   }
 
-  const filterItems = () => {
-    let filtered = items
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.owner_name?.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    }
-
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((item) => item.category === categoryFilter)
-    }
-
-    if (locationFilter) {
-      filtered = filtered.filter((item) => item.pickup_location.toLowerCase().includes(locationFilter.toLowerCase()))
-    }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((item) => item.status === statusFilter)
-    }
-
-    setFilteredItems(filtered)
-  }
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, categoryFilter, locationFilter, statusFilter])
 
   const handleEdit = (item: Item) => {
     setSelectedItem(item)
@@ -272,30 +323,60 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
           </div>
 
           {/* Results Summary */}
-          <div className="mb-4">
+          <div className="mb-4 flex justify-between items-center">
             <p className="text-sm sm:text-base text-gray-600">
-              Showing {filteredItems.length} of {items.length} items
+              Showing {items.length} of {totalItems} items
             </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredItems.map((item) => (
+            {items.map((item) => (
               <Card 
                 key={item.id} 
                 clickable={true}
                 onClick={() => handleEdit(item)}
               >
-                {item.image_url && (
-                  <div className="relative h-32 w-full">
-                    <Image
-                      src={item.image_url || "/placeholder.svg"}
+                  <div className="relative h-32 w-full bg-gray-100">
+                    {item.image_url && item.image_url.trim() !== '' ? (
+                      <OptimizedImage
+                        src={item.image_url}
                       alt={item.title}
                       fill
                       className="object-cover rounded-t-lg"
                     />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gray-100 rounded-t-lg">
+                        <div className="text-center">
+                          <Package className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <span className="text-xs text-gray-500">No image</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div className="relative group flex-1 min-w-0">
@@ -363,7 +444,7 @@ export default function ListingsManager({ onStatsUpdate }: ListingsManagerProps)
             ))}
           </div>
 
-          {filteredItems.length === 0 && (
+          {items.length === 0 && !loading && (
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg sm:text-xl lg:text-2xl font-medium text-gray-900 mb-2">No items found</h3>

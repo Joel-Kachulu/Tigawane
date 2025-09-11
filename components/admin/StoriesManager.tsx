@@ -24,18 +24,46 @@ export default function StoriesManager() {
   const [editLoading, setEditLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalStories, setTotalStories] = useState(0)
+  const storiesPerPage = 10
+
   useEffect(() => {
     fetchStories()
-  }, [])
+  }, [currentPage])
 
   const fetchStories = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from("stories")
-      .select("*")
-      .order("created_at", { ascending: false })
-    setStories(data || [])
-    setLoading(false)
+    try {
+      setLoading(true)
+      const from = (currentPage - 1) * storiesPerPage
+      const to = from + storiesPerPage - 1
+      
+      const { data, error, count } = await supabase
+        .from("stories")
+        .select("*", { count: 'exact' })
+        .order("created_at", { ascending: false })
+        .range(from, to)
+      
+      if (error) throw error
+      
+      setStories(data || [])
+      setTotalStories(count || 0)
+      setTotalPages(Math.ceil((count || 0) / storiesPerPage))
+    } catch (error) {
+      console.error("Error fetching stories:", error)
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error
+      })
+      setStories([])
+      setTotalStories(0)
+      setTotalPages(0)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleApprove = async (id: string) => {
@@ -84,11 +112,56 @@ export default function StoriesManager() {
     await fetchStories()
   }
 
-  if (loading) return <div>Loading stories...</div>
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center items-center h-32">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+            <span className="text-gray-600">Loading stories...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {stories.length === 0 && <div>No stories submitted yet.</div>}
+      {/* Results Summary */}
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-gray-600">
+          Showing {stories.length} of {totalStories} stories
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {stories.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-lg">No stories submitted yet.</div>
+        </div>
+      )}
       {stories.map(story => (
         <Card key={story.id} className="border-l-4 mb-4 border-l-green-500">
           <CardHeader>
