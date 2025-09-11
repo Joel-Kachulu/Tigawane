@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2, Image as ImageIcon } from "lucide-react"
+import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2, Image as ImageIcon, AlertCircle } from "lucide-react"
 import ClaimFoodModal from "./ClaimFoodModal"
 import EditItemModal from "./EditItemModal"
 
@@ -43,6 +43,23 @@ interface ItemListProps {
   itemType: "food" | "non-food"
   collaborationId?: string | null
 }
+
+// Utility function to calculate expiry urgency
+const getExpiryUrgency = (expiryDate: string) => {
+  const now = new Date();
+  const expiry = new Date(expiryDate);
+  const hoursUntilExpiry = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60);
+  
+  if (hoursUntilExpiry < 0) {
+    return { level: 'expired', color: 'red', text: 'Expired' };
+  } else if (hoursUntilExpiry <= 24) {
+    return { level: 'urgent', color: 'red', text: 'Expires today' };
+  } else if (hoursUntilExpiry <= 72) {
+    return { level: 'soon', color: 'amber', text: 'Expires soon' };
+  } else {
+    return { level: 'fresh', color: 'green', text: 'Fresh' };
+  }
+};
 
 export default function ItemList({ itemType, collaborationId }: ItemListProps) {
   const { user } = useAuth()
@@ -332,43 +349,51 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       ) : (
         <>
           {/* Mobile: Vertical Feed Layout */}
-          <div className="lg:hidden space-y-4">
-            {filteredItems.map((item) => (
-              <Card key={item.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl">
-                <div className="flex">
-                  {/* Image Section */}
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
+          <div className="lg:hidden space-y-3">
+            {filteredItems.map((item) => {
+              // Precompute urgency to avoid IIFE in JSX
+              const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
+              
+              return (
+              <Card key={item.id} className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-3xl relative">
+                <div className="flex h-24">
+                  {/* Image Section - Fixed 4:3 aspect ratio */}
+                  <div className="relative w-32 h-24 flex-shrink-0 overflow-hidden rounded-l-3xl bg-gradient-to-br from-gray-50 to-gray-100">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
                         alt={item.title}
                         className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
-                          target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-xs">No image</div>';
+                          target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-xs font-medium">No image</div>';
                         }}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-400">
-                        <ImageIcon className="h-6 w-6 text-gray-300" />
+                        <div className="text-center">
+                          <ImageIcon className="h-8 w-8 mx-auto mb-1 text-gray-300" />
+                          <span className="text-xs font-medium">No image</span>
+                        </div>
                       </div>
                     )}
                     
-                    {/* Status Badge */}
-                    <div className="absolute top-1 left-1">
-                      <div className={`w-3 h-3 rounded-full border-2 border-white shadow-sm ${
+                    {/* Status Indicator - More prominent */}
+                    <div className="absolute top-2 left-2">
+                      <div className={`w-4 h-4 rounded-full border-2 border-white shadow-lg ${
                         item.status === 'available' ? 'bg-green-500' :
-                        item.status === 'requested' ? 'bg-yellow-500' :
+                        item.status === 'requested' ? 'bg-amber-500' :
                         item.status === 'reserved' ? 'bg-blue-500' :
                         'bg-gray-500'
                       }`}></div>
                     </div>
                     
-                    {/* Distance Badge */}
+                    {/* Distance Badge - More prominent */}
                     {item.distance !== undefined && (
-                      <div className="absolute top-1 right-1">
-                        <div className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs px-1.5 py-0.5 rounded-full font-medium shadow-sm">
+                      <div className="absolute top-2 right-2">
+                        <div className="bg-blue-600 text-white text-sm px-3 py-1 rounded-full font-bold shadow-lg border-2 border-white">
                           {formatDistance(item.distance)}
                         </div>
                       </div>
@@ -376,126 +401,144 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   </div>
                   
                   {/* Content Section */}
-                  <div className="flex-1 p-3 flex flex-col justify-between">
-                    <div className="space-y-1">
-                      {/* Title and Category */}
+                  <div className="flex-1 p-4 pb-14 pr-24 flex flex-col justify-between">
+                    {/* Top Section - Title & Category */}
+                    <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <h3 className="font-bold text-base text-gray-900 line-clamp-1 group-hover:text-green-700 transition-colors">
+                          <h3 className="font-bold text-lg text-gray-900 line-clamp-2 leading-tight group-hover:text-green-700 transition-colors">
                             {item.title}
-                            {requestCounts[item.id] > 0 && (
-                              <span className="ml-1 inline-flex items-center justify-center px-1 py-0.5 rounded-full text-xs font-semibold bg-yellow-200 text-yellow-800 animate-pulse">
-                                {requestCounts[item.id]}
-                              </span>
-                            )}
                           </h3>
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs mt-1">
-                            {item.category}
-                          </Badge>
                         </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs font-medium">
+                          {item.category}
+                        </Badge>
                         <Badge 
                           variant={item.status === 'available' ? 'default' : 'secondary'}
-                          className={`text-xs ${
-                            item.status === 'available' ? 'bg-green-100 text-green-800' :
-                            item.status === 'requested' ? 'bg-yellow-100 text-yellow-800' :
+                          className={`text-xs font-medium ${
+                            item.status === 'available' ? 'bg-green-500 text-white' :
+                            item.status === 'requested' ? 'bg-amber-100 text-amber-800' :
                             item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
                           }`}
                         >
-                          {item.status === 'available' && requestCounts[item.id] > 0 
-                            ? `Requested (${requestCounts[item.id]})` 
-                            : item.status}
+                          {item.status}
                         </Badge>
+                        {/* Separate requests indicator */}
+                        {item.status === 'available' && requestCounts[item.id] > 0 && (
+                          <Badge className="text-xs font-bold bg-amber-100 text-amber-800 animate-pulse">
+                            {requestCounts[item.id]} requests
+                          </Badge>
+                        )}
                       </div>
                       
-                      {/* Key Info Row */}
-                      <div className="flex items-center gap-3 text-xs text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Package className="h-3 w-3" />
-                          <span>{item.quantity}</span>
+                      {/* Key Info Row with Urgency */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Quantity */}
+                        <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                          <Package className="h-3 w-3 text-gray-600" />
+                          <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
                         </div>
+                        
+                        {/* Condition for non-food items */}
                         {item.condition && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                          <Badge variant="outline" className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border-blue-200">
                             {item.condition}
                           </Badge>
                         )}
-                        {item.expiry_date && (
-                          <div className="flex items-center gap-1 text-orange-600">
-                            <CalendarDays className="h-3 w-3" />
-                            <span>Expires {new Date(item.expiry_date).toLocaleDateString()}</span>
+                        
+                        {/* Expiry with urgency colors for food items */}
+                        {urgency && (
+                          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+                            urgency.color === 'red' ? 'bg-red-100 text-red-700 border border-red-200' :
+                            urgency.color === 'amber' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                            'bg-green-100 text-green-700 border border-green-200'
+                          }`}>
+                            {urgency.color === 'red' && <AlertCircle className="h-3 w-3" />}
+                            {urgency.color === 'amber' && <CalendarDays className="h-3 w-3" />}
+                            {urgency.color === 'green' && <CalendarDays className="h-3 w-3" />}
+                            <span>{urgency.text}</span>
                           </div>
                         )}
                       </div>
-                      
-                      {/* Description */}
-                      <p className="text-sm text-gray-600 line-clamp-1">
-                        {item.description}
-                      </p>
-                      
-                      {/* Location and Owner */}
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{item.pickup_location}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        By {profiles[item.user_id]?.full_name || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}
-                      </p>
                     </div>
                     
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 mt-2">
-                      {user && user.id !== item.user_id && item.status === 'available' && (
+                    {/* Bottom Section - Location & Owner */}
+                    <div className="space-y-1 mt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate font-medium">{item.pickup_location}</span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        By {profiles[item.user_id]?.full_name || 'Unknown'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Single Primary CTA */}
+                  <div className="absolute bottom-3 right-3">
+                    {user && user.id !== item.user_id && item.status === 'available' ? (
+                      <Button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setRequestingItems(prev => new Set(prev).add(item.id));
+                          setSelectedItem(item);
+                          
+                          setTimeout(() => {
+                            setRequestingItems(prev => {
+                              const newSet = new Set(prev);
+                              newSet.delete(item.id);
+                              return newSet;
+                            });
+                          }, 2000);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full min-h-[40px] shadow-lg hover:shadow-xl transition-all duration-200 border-2 border-white"
+                        disabled={requestingItems.has(item.id)}
+                      >
+                        {requestingItems.has(item.id) ? "..." : "Claim"}
+                      </Button>
+                    ) : user && user.id === item.user_id ? (
+                      <div className="flex gap-2">
                         <Button 
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setRequestingItems(prev => new Set(prev).add(item.id));
-                            setSelectedItem(item);
-                            
-                            setTimeout(() => {
-                              setRequestingItems(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(item.id);
-                                return newSet;
-                              });
-                            }, 2000);
+                            setEditingItem(item);
                           }}
-                          className="flex-1 text-sm font-semibold py-2.5 px-3 min-h-[44px] bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 rounded-xl transition-all duration-200 touch-target"
-                          disabled={requestingItems.has(item.id)}
+                          variant="outline"
+                          className="bg-white hover:bg-gray-50 border-gray-300 hover:border-green-500 text-gray-700 hover:text-green-700 font-medium py-2 px-3 rounded-full shadow-lg"
                         >
-                          <Plus className="h-4 w-4 mr-1.5" />
-                          {requestingItems.has(item.id) ? "Requesting..." : "Claim"}
+                          <Edit className="h-4 w-4" />
                         </Button>
-                      )}
-                      
-                      {user && user.id === item.user_id && (
-                        <>
-                          <Button 
-                            onClick={() => setEditingItem(item)}
-                            variant="outline"
-                            className="flex-1 text-sm font-semibold py-2.5 px-3 min-h-[44px] border border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-xl transition-all duration-200 touch-target"
-                          >
-                            <Edit className="h-4 w-4 mr-1.5" />
-                            Edit
-                          </Button>
-                          <Button 
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this item?')) {
-                                handleDeleteItem(item.id)
-                              }
-                            }}
-                            variant="outline"
-                            className="text-red-600 hover:text-red-700 border border-red-300 hover:border-red-500 hover:bg-red-50 text-sm font-semibold py-2.5 px-3 min-h-[44px] min-w-[44px] rounded-xl transition-all duration-200 touch-target"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                        <Button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this item?')) {
+                              handleDeleteItem(item.id)
+                            }
+                          }}
+                          variant="outline"
+                          className="bg-white hover:bg-red-50 border-gray-300 hover:border-red-500 text-gray-700 hover:text-red-700 font-medium py-2 px-3 rounded-full shadow-lg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
           {/* Desktop: Grid Layout */}
@@ -545,8 +588,8 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                       <div className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs px-2 py-1 rounded-full font-medium shadow-sm">
                         {formatDistance(item.distance)}
                       </div>
-                  </div>
-                )}
+                    </div>
+                  )}
                 </div>
                 <CardHeader className="p-3 pb-2">
                   <div className="flex justify-between items-start">
