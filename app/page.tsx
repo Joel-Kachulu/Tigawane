@@ -233,67 +233,6 @@ function AppContent() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
-        {/* Welcome Hero Section */}
-        <div className="text-center mb-12 relative">
-          <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-blue-50 rounded-3xl p-8 sm:p-12 border border-green-100/50 shadow-xl backdrop-blur-sm relative overflow-hidden">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5">
-              <div className="absolute top-4 left-4 w-8 h-8 text-green-500">🍎</div>
-              <div className="absolute top-8 right-8 w-8 h-8 text-blue-500">👕</div>
-              <div className="absolute bottom-8 left-8 w-8 h-8 text-orange-500">🥖</div>
-              <div className="absolute bottom-4 right-4 w-8 h-8 text-purple-500">📚</div>
-            </div>
-            
-            <div className="relative z-10">
-              <h1 className="text-4xl sm:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                <span className="bg-gradient-to-r from-green-600 via-emerald-600 to-blue-600 bg-clip-text text-transparent">Tigawane</span>
-                <br />
-                <span className="text-gray-700">Community Sharing</span>
-              </h1>
-              
-              <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-                Connect with your neighbors to share food, items, and experiences. 
-                <span className="font-semibold text-green-700"> Build stronger communities</span> through 
-                generous sharing and collaboration.
-              </p>
-              
-              {/* Quick Start CTAs */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-                <Button
-                  onClick={() => setCurrentTab("browse-food")}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 py-4 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 min-w-[200px] min-h-[56px]"
-                >
-                  <span className="mr-3 text-xl">🍽️</span>
-                  Browse Nearby Food
-                </Button>
-                <Button
-                  onClick={() => setCurrentTab("share-food")}
-                  variant="outline"
-                  className="border-2 border-green-500 hover:bg-green-50 text-green-700 px-8 py-4 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 min-w-[200px] min-h-[56px]"
-                >
-                  <Plus className="mr-3 h-5 w-5" />
-                  Share an Item
-                </Button>
-              </div>
-              
-              {/* Community Stats */}
-              <div className="flex flex-wrap justify-center gap-8 text-center">
-                <div className="flex flex-col items-center">
-                  <div className="text-3xl font-bold text-green-600 mb-1">2.5K+</div>
-                  <div className="text-sm text-gray-600 font-medium">Items Shared</div>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-1">850+</div>
-                  <div className="text-sm text-gray-600 font-medium">Community Members</div>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-1">45</div>
-                  <div className="text-sm text-gray-600 font-medium">Active Collaborations</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
           {/* Mobile: Enhanced Navigation Menu */}

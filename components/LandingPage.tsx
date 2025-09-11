@@ -188,30 +188,48 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className={`max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24 flex flex-col items-center justify-center text-center space-y-10 relative z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div className="space-y-6">
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 drop-shadow-lg animate-fade-in-up leading-tight" style={{ animationDelay: '0.2s' }}>
-              Reduce Waste, 
-              <span className="block text-yellow-300">Share Surplus</span>
+              <span className="block text-yellow-300">Tigawane</span>
+              Community Sharing
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl max-w-3xl mx-auto text-white/90 mb-10 drop-shadow animate-fade-in-up leading-relaxed" style={{ animationDelay: '0.4s' }}>
-              Join Tigawane and help build a sustainable community by sharing items you no longer need
+              Connect with your neighbors to share food, items, and experiences. 
+              <span className="block mt-2 text-green-200 font-semibold">Build stronger communities through generous sharing.</span>
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
             <Button
               onClick={onGetStarted}
               size="lg"
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 group"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 group min-w-[240px]"
             >
-              Share Something Today 
-              <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform duration-300" />
+              <span className="mr-3 text-2xl">🍽️</span>
+              Browse Nearby Food
             </Button>
             <Button
               onClick={onGetStarted}
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-green-600 font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-sm"
+              className="border-white text-white hover:bg-white hover:text-green-600 font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-sm min-w-[240px]"
             >
-              See What's Being Shared
+              <ArrowRight className="mr-3 h-6 w-6" />
+              Share an Item
             </Button>
+          </div>
+
+          {/* Community Stats */}
+          <div className="flex flex-wrap justify-center gap-8 text-center mt-12 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
+            <div className="flex flex-col items-center">
+              <div className="text-4xl font-bold text-yellow-300 mb-2 drop-shadow-lg">2.5K+</div>
+              <div className="text-sm text-white/90 font-medium">Items Shared</div>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="text-4xl font-bold text-green-300 mb-2 drop-shadow-lg">850+</div>
+              <div className="text-sm text-white/90 font-medium">Community Members</div>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="text-4xl font-bold text-blue-300 mb-2 drop-shadow-lg">45</div>
+              <div className="text-sm text-white/90 font-medium">Active Collaborations</div>
+            </div>
           </div>
         </div>
 
@@ -219,6 +237,118 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
           <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">
             <div className="w-1 h-3 bg-white/70 rounded-full mt-2 animate-pulse"></div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Sections - Near You & Trending */}
+      <section className="py-16 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          {/* Near You Section */}
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white text-2xl">📍</span>
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">Near You</h2>
+                  <p className="text-gray-600 text-lg">Fresh items within walking distance</p>
+                </div>
+              </div>
+              <Button
+                onClick={onGetStarted}
+                variant="outline"
+                className="text-blue-600 border-blue-200 hover:bg-blue-50 px-6 py-3 font-semibold"
+              >
+                View All
+              </Button>
+            </div>
+            
+            {/* Horizontal Scroll Cards */}
+            <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
+              {[
+                { emoji: "🥐", title: "Fresh Croissants", distance: "0.2km", type: "Food", color: "orange" },
+                { emoji: "📚", title: "Study Books", distance: "0.5km", type: "Items", color: "purple" },
+                { emoji: "🍎", title: "Apple Harvest", distance: "0.8km", type: "Food", color: "green" },
+                { emoji: "👶", title: "Baby Clothes", distance: "1.1km", type: "Items", color: "pink" },
+                { emoji: "🥕", title: "Fresh Vegetables", distance: "1.3km", type: "Food", color: "orange" }
+              ].map((item, index) => (
+                <button
+                  key={index}
+                  className="flex-shrink-0 w-56 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onClick={onGetStarted}
+                >
+                  <div className="text-4xl mb-4">{item.emoji}</div>
+                  <h3 className="font-semibold text-gray-900 mb-3 text-lg">{item.title}</h3>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 font-medium">{item.distance} away</span>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      item.color === 'orange' ? 'bg-orange-100 text-orange-700' :
+                      item.color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                      item.color === 'green' ? 'bg-green-100 text-green-700' :
+                      'bg-pink-100 text-pink-700'
+                    }`}>
+                      {item.type}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Trending Section */}
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white text-2xl">🔥</span>
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">Trending</h2>
+                  <p className="text-gray-600 text-lg">Popular items in your community</p>
+                </div>
+              </div>
+              <Button
+                onClick={onGetStarted}
+                variant="outline"
+                className="text-green-600 border-green-200 hover:bg-green-50 px-6 py-3 font-semibold"
+              >
+                Join Community
+              </Button>
+            </div>
+            
+            {/* Horizontal Scroll Cards */}
+            <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
+              {[
+                { emoji: "🍕", title: "Community Pizza Night", users: "12", type: "Collaboration", color: "purple" },
+                { emoji: "🧸", title: "Kids Toy Exchange", users: "8", type: "Items", color: "pink" },
+                { emoji: "🌿", title: "Garden Share", users: "15", type: "Food", color: "green" },
+                { emoji: "📖", title: "Book Club Swap", users: "6", type: "Items", color: "blue" },
+                { emoji: "🥘", title: "Recipe Exchange", users: "20", type: "Food", color: "orange" }
+              ].map((item, index) => (
+                <button
+                  key={index}
+                  className="flex-shrink-0 w-56 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 text-left focus:outline-none focus:ring-2 focus:ring-green-500"
+                  onClick={onGetStarted}
+                >
+                  <div className="text-4xl mb-4">{item.emoji}</div>
+                  <h3 className="font-semibold text-gray-900 mb-3 text-lg">{item.title}</h3>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 font-medium">{item.users} members</span>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      item.color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                      item.color === 'pink' ? 'bg-pink-100 text-pink-700' :
+                      item.color === 'green' ? 'bg-green-100 text-green-700' :
+                      item.color === 'blue' ? 'bg-blue-100 text-blue-700' :
+                      'bg-orange-100 text-orange-700'
+                    }`}>
+                      {item.type}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>
