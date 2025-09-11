@@ -81,10 +81,10 @@ export default function LocationSelector({ showRadiusSelector = true, className 
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className={`flex items-center gap-2 px-3 py-2 h-auto ${className}`}
+          className={`flex items-center gap-3 px-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 hover:border-green-500 transition-colors touch-target-lg ${className}`}
         >
-          <MapPin className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-medium">{getCompactDisplay()}</span>
+          <MapPin className="h-5 w-5 text-blue-600" />
+          <span className="text-sm font-medium mobile-text-base">{getCompactDisplay()}</span>
           <ChevronDown className="h-4 w-4 text-gray-500" />
         </Button>
       </DialogTrigger>
@@ -153,7 +153,7 @@ export default function LocationSelector({ showRadiusSelector = true, className 
               value={selectedLocation?.city || ''}
               onValueChange={handleCityChange}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-12 px-4 rounded-xl border-2 border-gray-200 hover:border-green-500 transition-colors touch-target-lg">
                 <SelectValue placeholder="Choose a city" />
               </SelectTrigger>
               <SelectContent>

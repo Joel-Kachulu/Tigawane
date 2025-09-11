@@ -164,42 +164,66 @@ function AppContent() {
               </div>
             </div>
 
-            {/* Navigation Actions */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Welcome Message */}
-              <div className="hidden md:flex flex-col items-end mr-2">
+            {/* Navigation Actions - Mobile Optimized */}
+            <div className="flex items-center gap-1 sm:gap-3">
+              {/* Welcome Message - Desktop Only */}
+              <div className="hidden lg:flex flex-col items-end mr-3">
                 <span className="text-xs text-green-100 font-medium">Welcome back</span>
                 <span className="text-sm text-white font-semibold truncate max-w-32">
                   {user?.email?.split('@')[0] || 'User'}
                 </span>
               </div>
 
-              {/* Notification Center with Enhanced Styling */}
+              {/* Notification Center - Larger Touch Target on Mobile */}
               <div className="relative">
                 <NotificationCenter onOpenChat={handleOpenChat} onNavigateToMyItems={handleNavigateToMyItems} />
               </div>
 
-              {/* Home Button */}
-              <Button 
-                variant="outline" 
-                onClick={handleGoHome} 
-                className="flex items-center gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:text-green-50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105" 
-                size="sm"
-              >
-                <Home className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Home</span>
-              </Button>
+              {/* Mobile: Compact Action Menu */}
+              <div className="sm:hidden flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  onClick={handleGoHome} 
+                  className="flex items-center justify-center p-3 bg-white/10 border-white/20 text-white hover:bg-white/20 transition-all duration-300 backdrop-blur-sm rounded-xl min-w-[44px] min-h-[44px]" 
+                  size="sm"
+                  aria-label="Go to home page"
+                >
+                  <Home className="h-5 w-5" />
+                </Button>
 
-              {/* Sign Out Button */}
-              <Button 
-                variant="outline" 
-                onClick={handleSignOut} 
-                className="flex items-center gap-2 bg-red-500/20 border-red-300/30 text-white hover:bg-red-500/30 hover:border-red-300/50 hover:text-red-50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105" 
-                size="sm"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Sign Out</span>
-              </Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleSignOut} 
+                  className="flex items-center justify-center p-3 bg-red-500/20 border-red-300/30 text-white hover:bg-red-500/30 transition-all duration-300 backdrop-blur-sm rounded-xl min-w-[44px] min-h-[44px]" 
+                  size="sm"
+                  aria-label="Sign out of account"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Desktop: Full Buttons with Text */}
+              <div className="hidden sm:flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleGoHome} 
+                  className="flex items-center gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:text-green-50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[40px]" 
+                  size="sm"
+                >
+                  <Home className="h-4 w-4" />
+                  <span className="font-medium">Home</span>
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  onClick={handleSignOut} 
+                  className="flex items-center gap-2 bg-red-500/20 border-red-300/30 text-white hover:bg-red-500/30 hover:border-red-300/50 hover:text-red-50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[40px]" 
+                  size="sm"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="font-medium">Sign Out</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -211,64 +235,54 @@ function AppContent() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
           {/* Mobile: Enhanced Navigation Menu */}
-          <div className="sm:hidden mb-8">
-            <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/40 rounded-xl shadow-lg border border-green-100/50 p-6 backdrop-blur-sm">
-              <div className="grid grid-cols-3 gap-6">
-                {/* Browse Section */}
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-0.5 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"></div>
-                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Browse</span>
-                    <div className="w-3 h-0.5 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"></div>
-                  </div>
-                  <div className="flex flex-col gap-3 w-full">
-                    <Button
-                      variant={currentTab === "browse-food" ? "default" : "outline"}
-                      size="sm"
-                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
-                        currentTab === "browse-food" 
-                          ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 border-blue-500" 
-                          : "bg-white/90 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
-                      }`}
-                      onClick={() => setCurrentTab("browse-food")}
-                    >
-                      {currentTab === "browse-food" && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 animate-pulse"></div>
-                      )}
-                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">🍚</span>
-                      <span className="text-xs font-semibold relative z-10">Food</span>
-                    </Button>
-                    <Button
-                      variant={currentTab === "browse-items" ? "default" : "outline"}
-                      size="sm"
-                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
-                        currentTab === "browse-items" 
-                          ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 border-blue-500" 
-                          : "bg-white/90 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
-                      }`}
-                      onClick={() => setCurrentTab("browse-items")}
-                    >
-                      {currentTab === "browse-items" && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 animate-pulse"></div>
-                      )}
-                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">👕</span>
-                      <span className="text-xs font-semibold relative z-10">Items</span>
-                    </Button>
-                  </div>
+          <div className="sm:hidden mb-6">
+            <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/40 rounded-2xl shadow-lg border border-green-100/50 p-4 backdrop-blur-sm">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Main Actions - Top Row */}
+                <div className="col-span-2 grid grid-cols-2 gap-3 mb-4">
+                  <Button
+                    variant={currentTab === "browse-food" ? "default" : "outline"}
+                    className={`group relative flex items-center justify-center gap-3 px-6 py-6 h-auto text-sm font-semibold w-full rounded-2xl transition-all duration-300 overflow-hidden min-h-[64px] ${
+                      currentTab === "browse-food" 
+                        ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 border-blue-500" 
+                        : "bg-white/90 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
+                    }`}
+                    onClick={() => setCurrentTab("browse-food")}
+                  >
+                    {currentTab === "browse-food" && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 animate-pulse"></div>
+                    )}
+                    <span className="text-2xl transform group-hover:scale-110 transition-transform duration-300 relative z-10">🍚</span>
+                    <span className="text-sm font-bold relative z-10">Browse Food</span>
+                  </Button>
+                  <Button
+                    variant={currentTab === "browse-items" ? "default" : "outline"}
+                    className={`group relative flex items-center justify-center gap-3 px-6 py-6 h-auto text-sm font-semibold w-full rounded-2xl transition-all duration-300 overflow-hidden min-h-[64px] ${
+                      currentTab === "browse-items" 
+                        ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg transform scale-105 border-blue-500" 
+                        : "bg-white/90 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md hover:scale-102 border-blue-200"
+                    }`}
+                    onClick={() => setCurrentTab("browse-items")}
+                  >
+                    {currentTab === "browse-items" && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 animate-pulse"></div>
+                    )}
+                    <span className="text-2xl transform group-hover:scale-110 transition-transform duration-300 relative z-10">👕</span>
+                    <span className="text-sm font-bold relative z-10">Browse Items</span>
+                  </Button>
                 </div>
-
+                
                 {/* Share Section */}
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-0.5 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
+                    <div className="w-4 h-0.5 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
                     <span className="text-xs font-bold text-orange-700 uppercase tracking-wider">Share</span>
-                    <div className="w-3 h-0.5 bg-gradient-to-r from-orange-600 to-orange-400 rounded-full"></div>
+                    <div className="w-4 h-0.5 bg-gradient-to-r from-orange-600 to-orange-400 rounded-full"></div>
                   </div>
                   <div className="flex flex-col gap-3 w-full">
                     <Button
                       variant={currentTab === "share-food" ? "default" : "outline"}
-                      size="sm"
-                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
+                      className={`group relative flex items-center justify-center gap-2 px-4 py-5 h-auto text-sm w-full rounded-xl transition-all duration-300 overflow-hidden min-h-[56px] ${
                         currentTab === "share-food" 
                           ? "bg-gradient-to-br from-orange-600 to-orange-700 text-white shadow-lg transform scale-105 border-orange-500" 
                           : "bg-white/90 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md hover:scale-102 border-orange-200"
@@ -278,13 +292,12 @@ function AppContent() {
                       {currentTab === "share-food" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-600/20 animate-pulse"></div>
                       )}
-                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">🍽️</span>
-                      <span className="text-xs font-semibold relative z-10">Food</span>
+                      <Plus className="h-5 w-5 transform group-hover:rotate-90 transition-all duration-300 relative z-10" />
+                      <span className="text-sm font-semibold relative z-10">Food</span>
                     </Button>
                     <Button
                       variant={currentTab === "share-items" ? "default" : "outline"}
-                      size="sm"
-                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
+                      className={`group relative flex items-center justify-center gap-2 px-4 py-5 h-auto text-sm w-full rounded-xl transition-all duration-300 overflow-hidden min-h-[56px] ${
                         currentTab === "share-items" 
                           ? "bg-gradient-to-br from-orange-600 to-orange-700 text-white shadow-lg transform scale-105 border-orange-500" 
                           : "bg-white/90 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md hover:scale-102 border-orange-200"
@@ -294,8 +307,8 @@ function AppContent() {
                       {currentTab === "share-items" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-600/20 animate-pulse"></div>
                       )}
-                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">📦</span>
-                      <span className="text-xs font-semibold relative z-10">Items</span>
+                      <Plus className="h-5 w-5 transform group-hover:rotate-90 transition-all duration-300 relative z-10" />
+                      <span className="text-sm font-semibold relative z-10">Items</span>
                     </Button>
                   </div>
                 </div>
@@ -303,15 +316,14 @@ function AppContent() {
                 {/* Community Section */}
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-0.5 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
+                    <div className="w-4 h-0.5 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
                     <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Community</span>
-                    <div className="w-3 h-0.5 bg-gradient-to-r from-purple-600 to-purple-400 rounded-full"></div>
+                    <div className="w-4 h-0.5 bg-gradient-to-r from-purple-600 to-purple-400 rounded-full"></div>
                   </div>
                   <div className="flex flex-col gap-3 w-full">
                     <Button
                       variant={currentTab === "collaborate" ? "default" : "outline"}
-                      size="sm"
-                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
+                      className={`group relative flex items-center justify-center gap-2 px-4 py-5 h-auto text-sm w-full rounded-xl transition-all duration-300 overflow-hidden min-h-[56px] ${
                         currentTab === "collaborate" 
                           ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg transform scale-105 border-purple-500" 
                           : "bg-white/90 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md hover:scale-102 border-purple-200"
@@ -321,13 +333,12 @@ function AppContent() {
                       {currentTab === "collaborate" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-purple-600/20 animate-pulse"></div>
                       )}
-                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">🤝</span>
-                      <span className="text-xs font-semibold relative z-10">Collaborate</span>
+                      <Users className="h-5 w-5 transform group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                      <span className="text-sm font-semibold relative z-10">Collaborate</span>
                     </Button>
                     <Button
                       variant={currentTab === "my-items" ? "default" : "outline"}
-                      size="sm"
-                      className={`group relative flex flex-col items-center gap-2 px-4 py-4 h-auto text-xs w-full rounded-xl transition-all duration-300 overflow-hidden ${
+                      className={`group relative flex items-center justify-center gap-2 px-4 py-5 h-auto text-sm w-full rounded-xl transition-all duration-300 overflow-hidden min-h-[56px] ${
                         currentTab === "my-items" 
                           ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg transform scale-105 border-purple-500" 
                           : "bg-white/90 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md hover:scale-102 border-purple-200"
@@ -337,8 +348,8 @@ function AppContent() {
                       {currentTab === "my-items" && (
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-purple-600/20 animate-pulse"></div>
                       )}
-                      <span className="text-lg transform group-hover:scale-110 transition-transform duration-300 relative z-10">👤</span>
-                      <span className="text-xs font-semibold relative z-10">My Items</span>
+                      <User className="h-5 w-5 transform group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                      <span className="text-sm font-semibold relative z-10">My Items</span>
                     </Button>
                   </div>
                 </div>

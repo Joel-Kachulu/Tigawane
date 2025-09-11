@@ -271,42 +271,46 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
 
   return (
     <div className="space-y-6">
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+      {/* Search and Filters - Mobile Optimized */}
+      <div className="space-y-4">
+        {/* Search Bar - Full Width on Mobile */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <Input
             placeholder={`Search ${itemType} items...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-12 pr-4 py-4 text-base mobile-text-base rounded-xl border-2 border-gray-200 focus:border-green-500 transition-colors w-full"
           />
         </div>
         
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map(category => (
-              <SelectItem key={category} value={category}>{formatCategoryName(category)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Filters - Horizontal Scroll on Mobile */}
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide md:justify-start">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="min-w-[140px] h-12 px-4 rounded-xl border-2 border-gray-200 bg-white hover:border-green-300 transition-colors">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map(category => (
+                <SelectItem key={category} value={category}>{formatCategoryName(category)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="available">Available</SelectItem>
-            <SelectItem value="requested">Requested</SelectItem>
-            <SelectItem value="reserved">Reserved</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="min-w-[120px] h-12 px-4 rounded-xl border-2 border-gray-200 bg-white hover:border-green-300 transition-colors">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="requested">Requested</SelectItem>
+              <SelectItem value="reserved">Reserved</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Items Grid */}
@@ -327,11 +331,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         </Card>
       ) : (
         <>
-          {/* Mobile: Horizontal Scroll */}
+          {/* Mobile: Enhanced Card Layout */}
           <div className="lg:hidden">
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
               {filteredItems.map((item) => (
-                <div key={item.id} className="flex-shrink-0 w-[280px]">
+                <div key={item.id} className="flex-shrink-0 w-[300px]">
                   <Card className="group overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200 w-full h-full relative">
                     {/* Visual Enhancement: Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10"></div>
@@ -456,7 +460,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                         </span>
                       </div>
 
-                      <div className="flex gap-1 pt-2">
+                      <div className="flex gap-3 pt-3">
                         {user && user.id !== item.user_id && item.status === 'available' && (
                           <Button 
                             onClick={(e) => {
@@ -474,11 +478,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                                 });
                               }, 2000);
                             }}
-                            className="flex-1 text-xs py-2 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transform hover:scale-105 transition-all duration-200"
-                            size="sm"
+                            className="flex-1 text-sm font-semibold py-3 px-4 min-h-[48px] bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 rounded-xl transform hover:scale-105 transition-all duration-200 touch-target-lg"
                             disabled={requestingItems.has(item.id)}
                           >
-                            <Plus className="h-4 w-4 mr-1" />
+                            <Plus className="h-5 w-5 mr-2" />
                             {requestingItems.has(item.id) ? "Requesting..." : "Request"}
                           </Button>
                         )}
@@ -488,10 +491,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                             <Button 
                               onClick={() => setEditingItem(item)}
                               variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs py-2 h-auto hover:scale-105 transition-all duration-200"
+                              className="flex-1 text-sm font-semibold py-3 px-4 min-h-[48px] border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-xl transform hover:scale-105 transition-all duration-200 touch-target-lg"
                             >
-                              <Edit className="h-4 w-4 mr-1" />
+                              <Edit className="h-5 w-5 mr-2" />
                               Edit
                             </Button>
                             <Button 
@@ -501,10 +503,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                                 }
                               }}
                               variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 text-xs py-2 h-auto px-3 hover:scale-105 transition-all duration-200"
+                              className="text-red-600 hover:text-red-700 border-2 border-red-300 hover:border-red-500 hover:bg-red-50 text-sm font-semibold py-3 px-4 min-h-[48px] min-w-[48px] rounded-xl transform hover:scale-105 transition-all duration-200 touch-target-lg"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-5 w-5" />
                             </Button>
                           </>
                         )}
