@@ -89,50 +89,70 @@ export default function CollaborationCenter({ onOpenCollaborationChat }: Collabo
         })
       }
 
-      // Get participant counts and donation data for each collaboration
-      const collaborationsWithDetails = await Promise.all(
-        collaborationData.map(async (collab) => {
-          // Get participant count only
-          const { data: participantData } = await supabase
-            .from("collaboration_participants")
-            .select("user_id")
-            .eq("collaboration_id", collab.id)
+      // Optimize database queries by batching them
+      const collaborationIds = collaborationData.map(collab => collab.id)
+      
+      // Get all participants for all collaborations in one query
+      const { data: allParticipants } = await supabase
+        .from("collaboration_participants")
+        .select("collaboration_id, user_id")
+        .in("collaboration_id", collaborationIds)
 
-          // Check if current user is a participant
-          let isParticipant = false
-          if (user && participantData) {
-            isParticipant = participantData.some((p) => p.user_id === user.id)
+      // Get all donation data for all collaborations in one query
+      const { data: allDonations } = await supabase
+        .from("items")
+        .select("collaboration_id, item_type")
+        .in("collaboration_id", collaborationIds)
+        .eq("status", "available")
+
+      // Process the data efficiently
+      const participantsByCollab = new Map()
+      const donationsByCollab = new Map()
+      
+      // Group participants by collaboration
+      if (allParticipants) {
+        allParticipants.forEach(p => {
+          if (!participantsByCollab.has(p.collaboration_id)) {
+            participantsByCollab.set(p.collaboration_id, [])
           }
-
-          // Get donation counts only (no need for detailed data in cards)
-          const { count: totalDonations } = await supabase
-            .from("items")
-            .select("*", { count: "exact", head: true })
-            .eq("collaboration_id", collab.id)
-            .eq("status", "available")
-
-          const { data: donationTypes } = await supabase
-            .from("items")
-            .select("item_type")
-            .eq("collaboration_id", collab.id)
-            .eq("status", "available")
-
-          const foodCount = donationTypes?.filter(item => item.item_type === "food").length || 0
-          const itemCount = donationTypes?.filter(item => item.item_type === "non-food").length || 0
-
-          return {
-            ...collab,
-            creator_name: profilesMap.get(collab.creator_id) || "Anonymous",
-            participant_count: participantData?.length || 0,
-            is_participant: isParticipant,
-            donation_preview: {
-              food_count: foodCount,
-              item_count: itemCount,
-              total_count: totalDonations || 0
-            }
+          participantsByCollab.get(p.collaboration_id).push(p.user_id)
+        })
+      }
+      
+      // Group donations by collaboration and type
+      if (allDonations) {
+        allDonations.forEach(d => {
+          if (!donationsByCollab.has(d.collaboration_id)) {
+            donationsByCollab.set(d.collaboration_id, { food: 0, nonFood: 0, total: 0 })
           }
-        }),
-      )
+          const stats = donationsByCollab.get(d.collaboration_id)
+          stats.total++
+          if (d.item_type === "food") {
+            stats.food++
+          } else {
+            stats.nonFood++
+          }
+        })
+      }
+
+      // Build the final collaboration objects
+      const collaborationsWithDetails = collaborationData.map(collab => {
+        const participants = participantsByCollab.get(collab.id) || []
+        const donations = donationsByCollab.get(collab.id) || { food: 0, nonFood: 0, total: 0 }
+        const isParticipant = user ? participants.includes(user.id) : false
+
+        return {
+          ...collab,
+          creator_name: profilesMap.get(collab.creator_id) || "Anonymous",
+          participant_count: participants.length,
+          is_participant: isParticipant,
+          donation_preview: {
+            food_count: donations.food,
+            item_count: donations.nonFood,
+            total_count: donations.total
+          }
+        }
+      })
 
       setCollaborations(collaborationsWithDetails)
       setIsTableMissing(false)

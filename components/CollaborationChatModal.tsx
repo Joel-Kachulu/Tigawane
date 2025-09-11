@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Send, Users, Package, Utensils, Gift, ExternalLink, Clock, MapPin, Calendar, MessageCircle, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface CollaborationMessage {
   id: string
@@ -54,6 +55,7 @@ export default function CollaborationChatModal({
   onClose,
 }: CollaborationChatModalProps) {
   const { user } = useAuth()
+  const router = useRouter()
   const [messages, setMessages] = useState<CollaborationMessage[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
   const [donationSummary, setDonationSummary] = useState<DonationSummary | null>(null)
@@ -175,10 +177,17 @@ export default function CollaborationChatModal({
     if (!collaborationId) return
 
     try {
-      // Get items for this collaboration - show all items regardless of location
+      // Optimized query: get items with user profiles in one join query
       const { data: donationData, error } = await supabase
         .from("items")
-        .select("id, title, item_type, user_id, created_at")
+        .select(`
+          id, 
+          title, 
+          item_type, 
+          user_id, 
+          created_at,
+          profiles:user_id ( full_name )
+        `)
         .eq("status", "available")
         .eq("collaboration_id", collaborationId)
         .order("created_at", { ascending: false })
@@ -205,21 +214,7 @@ export default function CollaborationChatModal({
         return
       }
 
-      // Get user names for the items
-      const userIds = [...new Set(donationData.map(item => item.user_id))]
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds)
-
-      // Create a map of user IDs to names
-      const profilesMap = new Map()
-      if (profilesData) {
-        profilesData.forEach(profile => {
-          profilesMap.set(profile.id, profile.full_name)
-        })
-      }
-
+      // Process data efficiently without additional queries
       const foodCount = donationData.filter(item => item.item_type === "food").length
       const itemCount = donationData.filter(item => item.item_type === "non-food").length
 
@@ -227,7 +222,7 @@ export default function CollaborationChatModal({
         id: item.id,
         title: item.title,
         item_type: item.item_type,
-        user_name: profilesMap.get(item.user_id) || "Anonymous",
+        user_name: (item.profiles as any)?.full_name || "Anonymous",
         created_at: item.created_at
       }))
 
@@ -318,48 +313,44 @@ export default function CollaborationChatModal({
 
   const handleNavigateToFullPage = () => {
     setIsNavigating(true)
-    // Use window.open for faster navigation
-    const newWindow = window.open(`/collaborations/${collaborationId}`, '_blank')
-    if (newWindow) {
-      // Reset loading state after a short delay
-      setTimeout(() => setIsNavigating(false), 1000)
-    } else {
-      // Fallback to regular navigation if popup is blocked
-      window.location.href = `/collaborations/${collaborationId}`
-      setIsNavigating(false)
-    }
+    onClose() // Close the modal first
+    // Use Next.js router for instant navigation within the app
+    router.push(`/collaborations/${collaborationId}`)
+    setIsNavigating(false)
   }
 
   if (!collaborationId) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-        <DialogHeader className="border-b pb-4 px-6 pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <Users className="h-6 w-6 text-green-600" />
+      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] p-0 m-2 sm:m-6">
+        <DialogHeader className="border-b pb-4 px-4 sm:px-6 pt-4 sm:pt-6 bg-white rounded-t-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
               </div>
-              <div className="flex-1">
-                <DialogTitle className="text-xl font-bold text-gray-900">{collaborationTitle}</DialogTitle>
-                <p className="text-sm text-gray-600 mt-1">All collaboration items shown regardless of location</p>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2">
-                  <Badge variant="secondary" className="text-sm bg-blue-100 text-blue-800 px-3 py-1">
-                    <Users className="h-4 w-4 mr-2" />
-                    {participants.length} participants
+              <div className="flex-1 min-w-0">
+                <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 truncate">{collaborationTitle}</DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-1">
+                  Chat with participants and view collaboration items
+                </DialogDescription>
+                <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 px-2 py-1">
+                    <Users className="h-3 w-3 mr-1" />
+                    {participants.length}
                   </Badge>
                   {donationSummary && donationSummary.total_count > 0 && (
-                    <Badge variant="secondary" className="text-sm bg-green-100 text-green-800 px-3 py-1">
-                      <Gift className="h-4 w-4 mr-2" />
-                      {donationSummary.total_count} total donations
+                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 px-2 py-1">
+                      <Gift className="h-3 w-3 mr-1" />
+                      {donationSummary.total_count}
                     </Badge>
                   )}
                 </div>
               </div>
             </div>
             <Button
-              className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 flex-shrink-0"
+              className="bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 sm:px-4 sm:py-3 flex-shrink-0 min-h-[44px] rounded-xl touch-target-lg"
               onClick={handleNavigateToFullPage}
               disabled={isNavigating}
             >
@@ -367,8 +358,8 @@ export default function CollaborationChatModal({
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  <span>View Full Page</span>
+                  <ExternalLink className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">View Full Page</span>
                 </>
               )}
             </Button>
@@ -425,7 +416,7 @@ export default function CollaborationChatModal({
           </div>
 
           {/* Message Input */}
-          <div className="border-t p-6">
+          <div className="border-t p-4 sm:p-6 bg-white rounded-b-lg">
             <form onSubmit={(e) => {
               e.preventDefault();
               sendMessage();
@@ -434,14 +425,18 @@ export default function CollaborationChatModal({
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type your message..."
-                className="flex-1"
+                className="flex-1 py-3 px-4 text-base sm:text-sm rounded-xl border-2 border-gray-200 focus:border-green-500 transition-colors min-h-[48px] mobile-text-base"
                 disabled={loading}
               />
-              <Button type="submit" disabled={loading || !newMessage.trim()}>
+              <Button 
+                type="submit" 
+                disabled={loading || !newMessage.trim()}
+                className="bg-green-600 hover:bg-green-700 px-4 py-3 min-h-[48px] min-w-[48px] rounded-xl touch-target-lg"
+              >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  <Send className="h-5 w-5" />
                 )}
               </Button>
             </form>
