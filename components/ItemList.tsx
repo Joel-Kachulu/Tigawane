@@ -356,9 +356,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
               
               return (
               <Card key={item.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl relative">
-                <div className="flex h-28">
+                <div className="flex h-24">
                   {/* Image Section - Enhanced size for mobile */}
-                  <div className="relative w-36 h-28 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="relative w-32 h-24 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
@@ -539,20 +539,20 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
           </div>
 
           {/* Desktop: Grid Layout */}
-          <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map((item) => {
               // Precompute urgency to avoid IIFE in JSX
               const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
               
               return (
-              <Card key={item.id} className="group overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 w-full max-w-[320px] mx-auto relative bg-white">
+              <Card key={item.id} className="group overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 w-full aspect-[5/3] mx-auto relative bg-white flex flex-col">
                 {/* Enhanced Visual Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10"></div>
                 
                 {/* Visual Enhancement: Corner Accent */}
                 <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 
-                <div className="relative h-48 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="relative flex-1 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100">
                   {item.image_url ? (
                     <img
                       src={item.image_url}
@@ -603,7 +603,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </div>
                   )}
                 </div>
-                <CardHeader className="p-4 pb-3">
+                <CardHeader className="p-4 pb-3 flex-shrink-0">
                   {/* Title and Category Row */}
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
