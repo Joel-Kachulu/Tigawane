@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
 
       // 👤 Create profile only on signup
-      if (event === "SIGNED_UP" && session?.user) {
+      if (event === "SIGNED_IN" && session?.user) {
         try {
           const { data: existingProfile, error: profileCheckError } = await supabase
             .from("profiles")
