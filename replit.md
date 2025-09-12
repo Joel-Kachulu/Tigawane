@@ -2,6 +2,28 @@
 
 Tigawane is a community sharing platform designed for Malawi that enables users to share food and non-food items within their local communities. The platform focuses on reducing waste and strengthening community bonds by connecting people who have items to share with those who need them. The application features location-based filtering to help users find nearby items, collaboration tools for community organizing, and a comprehensive chat system for coordination.
 
+# Recent Changes
+
+## September 12, 2025 - Dynamic Landing Page Data Loading Fixes
+
+Fixed critical issues with the dynamic landing page data loading implementation:
+
+### Issues Resolved:
+1. **Stats counting bug**: Fixed incorrect Supabase count queries that were using `select(..., { count: 'exact', head: true })` with `data?.length` access. Now properly uses `select("*", { count: 'exact', head: true })` and accesses `result.count`.
+
+2. **Performance optimization**: Converted sequential stats queries to parallel execution using `Promise.all()`, improving page load performance.
+
+3. **Loading state bug**: Fixed loading state management where `setNearbyLoading(false)` wasn't called when `!selectedLocation`, which could leave UI stuck in loading state.
+
+4. **Nearby items optimization**: Improved location-based item fetching by implementing proper bounding box filtering using geographic coordinates (10km radius) before client-side distance calculation, preventing missed closer items.
+
+### Technical Improvements:
+- Community stats (items shared, members, collaborations) now load correctly from database
+- Better geographic querying with latitude/longitude bounding box filtering
+- Parallel database queries for improved performance
+- Proper error handling and loading state management
+- Increased query limit to 50 items within bounding box for better coverage
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

@@ -89,26 +89,29 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     async function fetchCommunityStats() {
       setStatsLoading(true)
       try {
-        // Get total items count (both food and non-food items)
-        const { data: itemsData } = await supabase
-          .from("items")
-          .select("id", { count: 'exact', head: true })
-        
-        // Get total community members count
-        const { data: membersData } = await supabase
-          .from("profiles")
-          .select("id", { count: 'exact', head: true })
-        
-        // Get active collaborations count
-        const { data: collaborationsData } = await supabase
-          .from("collaboration_requests")
-          .select("id", { count: 'exact', head: true })
-          .eq("status", "active")
+        // Run all queries in parallel for better performance
+        const [itemsResult, membersResult, collaborationsResult] = await Promise.all([
+          // Get total items count (both food and non-food items)
+          supabase
+            .from("items")
+            .select("*", { count: 'exact', head: true }),
+          
+          // Get total community members count
+          supabase
+            .from("profiles")
+            .select("*", { count: 'exact', head: true }),
+          
+          // Get active collaborations count
+          supabase
+            .from("collaboration_requests")
+            .select("*", { count: 'exact', head: true })
+            .eq("status", "active")
+        ])
 
         setCommunityStats({
-          itemsShared: itemsData?.length || 0,
-          communityMembers: membersData?.length || 0,
-          activeCollaborations: collaborationsData?.length || 0
+          itemsShared: itemsResult.count || 0,
+          communityMembers: membersResult.count || 0,
+          activeCollaborations: collaborationsResult.count || 0
         })
       } catch (error) {
         console.error('Error fetching community stats:', error)
@@ -124,18 +127,34 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   // Fetch nearby items when user location is available
   useEffect(() => {
     async function fetchNearbyItems() {
-      if (!selectedLocation) return
+      if (!selectedLocation) {
+        setNearbyLoading(false)
+        return
+      }
       
       setNearbyLoading(true)
       try {
-        // Fetch items with location coordinates
+        // Create a bounding box around the user's location (approximately 10km radius)
+        const kmPerDegree = 111 // Rough approximation: 1 degree ≈ 111 km
+        const radiusInDegrees = 10 / kmPerDegree // 10km radius
+        
+        const minLat = selectedLocation.latitude - radiusInDegrees
+        const maxLat = selectedLocation.latitude + radiusInDegrees
+        const minLng = selectedLocation.longitude - radiusInDegrees
+        const maxLng = selectedLocation.longitude + radiusInDegrees
+
+        // Fetch items within bounding box for better performance
         const { data: itemsData, error } = await supabase
           .from("items")
           .select("id, title, item_type, category, latitude, longitude")
           .eq("status", "available")
           .not("latitude", "is", null)
           .not("longitude", "is", null)
-          .limit(10)
+          .gte("latitude", minLat)
+          .lte("latitude", maxLat)
+          .gte("longitude", minLng)
+          .lte("longitude", maxLng)
+          .limit(50) // Increased limit since we're pre-filtering with bounding box
 
         if (error) {
           console.error('Error fetching nearby items:', error)
