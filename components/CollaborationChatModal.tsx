@@ -177,17 +177,10 @@ export default function CollaborationChatModal({
     if (!collaborationId) return
 
     try {
-      // Optimized query: get items with user profiles in one join query
+      // Get items for this collaboration - show all items regardless of location
       const { data: donationData, error } = await supabase
         .from("items")
-        .select(`
-          id, 
-          title, 
-          item_type, 
-          user_id, 
-          created_at,
-          profiles:user_id ( full_name )
-        `)
+        .select("id, title, item_type, user_id, created_at")
         .eq("status", "available")
         .eq("collaboration_id", collaborationId)
         .order("created_at", { ascending: false })

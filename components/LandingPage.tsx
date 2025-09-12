@@ -219,15 +219,15 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           {/* Community Stats */}
           <div className="flex flex-wrap justify-center gap-8 text-center mt-12 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-yellow-300 mb-2 drop-shadow-lg">2.5K+</div>
+              <div className="text-4xl font-bold text-yellow-300 mb-2 drop-shadow-lg">50+</div>
               <div className="text-sm text-white/90 font-medium">Items Shared</div>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-green-300 mb-2 drop-shadow-lg">850+</div>
+              <div className="text-4xl font-bold text-green-300 mb-2 drop-shadow-lg">20+</div>
               <div className="text-sm text-white/90 font-medium">Community Members</div>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-blue-300 mb-2 drop-shadow-lg">45</div>
+              <div className="text-4xl font-bold text-blue-300 mb-2 drop-shadow-lg">2</div>
               <div className="text-sm text-white/90 font-medium">Active Collaborations</div>
             </div>
           </div>
@@ -297,7 +297,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
 
+
           {/* Trending Section */}
+          {/*
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
@@ -318,7 +320,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               </Button>
             </div>
             
-            {/* Horizontal Scroll Cards */}
+            // Horizontal Scroll Cards
             <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
               {[
                 { emoji: "🍕", title: "Community Pizza Night", users: "12", type: "Collaboration", color: "purple" },
@@ -349,9 +351,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </button>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
-      </section>
+      </section> 
 
       {/* How It Works Section */}
       <section id="how-it-works" ref={(el) => { sectionRefs.current[0] = el as HTMLElement }} className="py-20 bg-white relative overflow-hidden">
