@@ -1,8 +1,6 @@
 
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -215,7 +213,7 @@ export default function CollaborationChatModal({
         id: item.id,
         title: item.title,
         item_type: item.item_type,
-        user_name: (item.profiles as any)?.full_name || "Anonymous",
+        user_name: "Anonymous", // Note: Would need to join with profiles table to get user name
         created_at: item.created_at
       }))
 

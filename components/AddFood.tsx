@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import React, { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
