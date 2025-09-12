@@ -356,14 +356,14 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
               
               return (
               <Card key={item.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl relative">
-                <div className="flex h-24">
+                <div className="flex min-h-36">
                   {/* Image Section - Enhanced size for mobile */}
-                  <div className="relative w-32 h-24 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="relative w-32 min-h-36 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
                         alt={item.title}
-                        className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
+                        className="object-contain object-center w-full h-full group-hover:scale-105 transition-transform duration-300 p-1"
                         loading="lazy"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -405,9 +405,16 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     {/* Top Section - Title & Key Info */}
                     <div className="space-y-3">
                       <div className="space-y-2">
-                        <h3 className="font-bold text-base text-gray-900 line-clamp-2 leading-tight group-hover:text-green-700 transition-colors">
+                        <h3 className="font-bold text-base text-gray-900 line-clamp-1 leading-tight group-hover:text-green-700 transition-colors">
                           {item.title}
                         </h3>
+                        
+                        {/* Description Preview */}
+                        {item.description && (
+                          <p className="text-sm text-gray-600 line-clamp-2 leading-snug">
+                            {item.description}
+                          </p>
+                        )}
                         
                         {/* Category and Status Row */}
                         <div className="flex items-center gap-2 flex-wrap">
@@ -464,24 +471,31 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                             <span>{urgency.text}</span>
                           </div>
                         )}
+                        
+                        {/* Explicit Expiry Date */}
+                        {item.expiry_date && (
+                          <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full font-medium">
+                            Expires: {new Date(item.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
                     {/* Bottom Section - Location & Owner */}
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                      <div className="flex items-center gap-1 text-xs text-gray-600" title={item.pickup_location}>
                         <MapPin className="h-3 w-3 shrink-0 text-gray-500" />
-                        <span className="truncate font-medium">{item.pickup_location}</span>
+                        <span className="line-clamp-1 font-medium">{item.pickup_location}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>By {profiles[item.user_id]?.full_name || 'Unknown'}</span>
-                        <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                        <span className="truncate">By {profiles[item.user_id]?.full_name || 'Unknown'}</span>
+                        <span className="shrink-0">{new Date(item.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Enhanced Action Button */}
-                  <div className="absolute bottom-4 right-4">
+                  <div className="absolute bottom-3 right-3">
                     {user && user.id !== item.user_id && item.status === 'available' ? (
                       <Button 
                         onClick={(e) => {
@@ -545,19 +559,19 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
               const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
               
               return (
-              <Card key={item.id} className="group overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 w-full aspect-[5/3] mx-auto relative bg-white flex flex-col">
+              <Card key={item.id} className="group overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 w-full min-h-[440px] mx-auto relative bg-white flex flex-col">
                 {/* Enhanced Visual Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10"></div>
                 
                 {/* Visual Enhancement: Corner Accent */}
                 <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 
-                <div className="relative flex-1 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="relative h-48 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100">
                   {item.image_url ? (
                     <img
                       src={item.image_url}
                       alt={item.title}
-                      className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
+                      className="object-contain object-center w-full h-full group-hover:scale-105 transition-transform duration-300 p-2"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
@@ -603,7 +617,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </div>
                   )}
                 </div>
-                <CardHeader className="p-4 pb-3 flex-shrink-0">
+                <CardHeader className="p-4 pb-3 flex-shrink-0 min-h-[220px] flex flex-col">
                   {/* Title and Category Row */}
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -646,6 +660,13 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           </div>
                         )}
                       </div>
+                      
+                      {/* Explicit Expiry Date */}
+                      {item.expiry_date && (
+                        <div className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded border">
+                          <strong>Expires:</strong> {new Date(item.expiry_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </div>
+                      )}
                       
                       {item.description && (
                         <CardDescription className="line-clamp-2 text-sm text-gray-600 leading-relaxed group-hover:line-clamp-3">
