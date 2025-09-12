@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MapPin, Clock, Package, Edit, Trash2, CheckCircle } from "lucide-react"
-import Image from "next/image"
 import EditItemModal from "@/components/EditItemModal"
 
 interface Item {
@@ -41,6 +40,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [requestCounts, setRequestCounts] = useState<{ [itemId: string]: number }>({})
   const [markingShared, setMarkingShared] = useState<string | null>(null)
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
   // Fetch request counts for each item
   const fetchRequestCounts = useCallback(async (itemIds: string[]) => {
@@ -114,6 +114,10 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
     setShowEditModal(false)
     setEditingItem(null)
   }, [fetchMyItems, onItemUpdated])
+
+  const handleImageError = useCallback((itemId: string) => {
+    setFailedImages(prev => new Set([...prev, itemId]))
+  }, [])
 
   const handleDeleteItem = useCallback(
     async (item: Item) => {
@@ -271,23 +275,178 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <>
+        {/* Mobile: Horizontal Card Layout */}
+        <div className="md:hidden space-y-4">
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="group overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer border-2 hover:border-green-200 w-full max-w-[280px] mx-auto" 
+              className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl relative"
               onClick={() => handleEditItem(item)}
             >
-              {item.image_url && (
+              <div className="flex h-28">
+                {/* Image Section */}
+                <div className="relative w-36 h-28 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
+                  {item.image_url && !failedImages.has(item.id) ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.title}
+                      className="object-cover object-center w-full h-full group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                      onError={() => handleImageError(item.id)}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-400">
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mb-2 mx-auto">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                          </svg>
+                        </div>
+                        <span className="text-xs font-medium">No image</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Status Indicator */}
+                  <div className="absolute top-3 left-3">
+                    <div className={`w-4 h-4 rounded-full border-3 border-white shadow-lg ${
+                      item.status === 'available' ? 'bg-green-500' :
+                      item.status === 'requested' ? 'bg-amber-500' :
+                      item.status === 'reserved' ? 'bg-blue-500' :
+                      'bg-gray-500'
+                    }`}></div>
+                  </div>
+                  
+                  {/* Request Count Indicator */}
+                  {requestCounts[item.id] > 0 && (
+                    <div className="absolute bottom-3 right-3">
+                      <div className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
+                        {requestCounts[item.id]} requests
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Content Section */}
+                <div className="flex-1 p-4 pr-20 flex flex-col justify-between">
+                  {/* Top Section */}
+                  <div className="space-y-2">
+                    <h3 className="font-bold text-base text-gray-900 line-clamp-2 leading-tight group-hover:text-green-700 transition-colors">
+                      {item.title}
+                    </h3>
+                    
+                    {/* Category and Status */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                        {item.category}
+                      </div>
+                      {getStatusBadge(item.status)}
+                    </div>
+                    
+                    {/* Key Details */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                        <Package className="h-3 w-3 text-gray-600" />
+                        <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
+                      </div>
+                      {item.condition && (
+                        <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-xs font-medium text-blue-700">{item.condition}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Bottom Section */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1 text-xs text-gray-600">
+                      <MapPin className="h-3 w-3 shrink-0 text-gray-500" />
+                      <span className="truncate font-medium">{item.pickup_location}</span>
+                    </div>
+                    {item.expiry_date && (
+                      <div className="flex items-center gap-1 text-xs text-amber-600">
+                        <Clock className="h-3 w-3" />
+                        <span>Expires: {new Date(item.expiry_date).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="absolute bottom-4 right-4">
+                  <div className="flex gap-1">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditItem(item);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white hover:bg-gray-50 border-gray-300 hover:border-green-500 text-gray-700 hover:text-green-700 font-medium py-1.5 px-2 rounded-full shadow-lg hover:scale-105 transition-all duration-200"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteItem(item);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white hover:bg-red-50 border-gray-300 hover:border-red-500 text-gray-700 hover:text-red-700 font-medium py-1.5 px-2 rounded-full shadow-lg hover:scale-105 transition-all duration-200"
+                      disabled={deleting === item.id}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                    {item.status !== "completed" && (
+                      <Button
+                        onClick={e => { e.stopPropagation(); handleMarkAsShared(item); }}
+                        variant="outline"
+                        size="sm"
+                        className="bg-white hover:bg-green-50 border-gray-300 hover:border-green-500 text-gray-700 hover:text-green-700 font-medium py-1.5 px-2 rounded-full shadow-lg hover:scale-105 transition-all duration-200"
+                        disabled={markingShared === item.id}
+                      >
+                        <CheckCircle className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Desktop: Grid Layout */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          {filteredItems.map((item) => (
+            <Card 
+              key={item.id} 
+              className="group overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 w-full max-w-[300px] mx-auto" 
+              onClick={() => handleEditItem(item)}
+            >
+              {item.image_url && !failedImages.has(item.id) && (
                 <div className="relative h-40 w-full overflow-hidden rounded-t-lg">
-                  <Image
-                    src={item.image_url || "/placeholder.svg"}
+                  <img
+                    src={item.image_url}
                     alt={item.title}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-300"
+                    className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
                     loading="lazy"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    onError={() => handleImageError(item.id)}
                   />
+                </div>
+              )}
+              {!item.image_url || failedImages.has(item.id) && (
+                <div className="relative h-40 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-3 mx-auto">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium">No image</span>
+                  </div>
                 </div>
               )}
               <CardHeader className="p-3 pb-2">
@@ -392,6 +551,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
             </Card>
           ))}
         </div>
+        </>
       )}
 
       <EditItemModal
