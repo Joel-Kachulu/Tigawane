@@ -1,9 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://whchjypvzwzkfbtazqeu.supabase.co"
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndoY2hqeXB2end6a2ZidGF6cWV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwMTY5NTcsImV4cCI6MjA2NTU5Mjk1N30.Uik_7_WWJcLlDO1hSE9BVbmy5887G6Xm22yu8X3DSZE"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!supabaseUrl) {
   throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable")
