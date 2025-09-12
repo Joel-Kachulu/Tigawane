@@ -6,6 +6,8 @@ import { ArrowRight, MessageCircle, MapPin, Heart, Users, Globe, Sparkles } from
 import { useEffect, useState, useRef } from "react"
 import SubmitStoryModal from "./SubmitStoryModal"
 import { supabase } from "@/lib/supabase"
+import { useLocation } from "@/contexts/LocationContext"
+import { calculateDistance } from "@/lib/locationService"
 // Authentic images of African people sharing and community building
 const HERO_IMAGE_URL = "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=1200&q=80" // African community sharing
 // Slideshow images for hero background featuring African community sharing and sustainable practices
@@ -49,15 +51,151 @@ const dummyStories = [
   }
 ]
 
+interface CommunityStats {
+  itemsShared: number
+  communityMembers: number
+  activeCollaborations: number
+}
+
+interface NearbyItem {
+  id: string
+  title: string
+  item_type: 'food' | 'non-food'
+  distance: number
+  emoji: string
+  category?: string
+}
+
 export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const [stories, setStories] = useState<any[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
+  const [communityStats, setCommunityStats] = useState<CommunityStats>({
+    itemsShared: 0,
+    communityMembers: 0,
+    activeCollaborations: 0
+  })
+  const [nearbyItems, setNearbyItems] = useState<NearbyItem[]>([])
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [nearbyLoading, setNearbyLoading] = useState(true)
   const heroRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<(HTMLElement | null)[]>([])
+  
+  const { userLocation, selectedLocation } = useLocation()
 
-  // For demo, both CTAs use onGetStarted. You can wire to different actions if needed.
+  // Fetch community stats from database
+  useEffect(() => {
+    async function fetchCommunityStats() {
+      setStatsLoading(true)
+      try {
+        // Get total items count (both food and non-food items)
+        const { data: itemsData } = await supabase
+          .from("items")
+          .select("id", { count: 'exact', head: true })
+        
+        // Get total community members count
+        const { data: membersData } = await supabase
+          .from("profiles")
+          .select("id", { count: 'exact', head: true })
+        
+        // Get active collaborations count
+        const { data: collaborationsData } = await supabase
+          .from("collaboration_requests")
+          .select("id", { count: 'exact', head: true })
+          .eq("status", "active")
+
+        setCommunityStats({
+          itemsShared: itemsData?.length || 0,
+          communityMembers: membersData?.length || 0,
+          activeCollaborations: collaborationsData?.length || 0
+        })
+      } catch (error) {
+        console.error('Error fetching community stats:', error)
+        // Keep default values on error
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+    
+    fetchCommunityStats()
+  }, [])
+
+  // Fetch nearby items when user location is available
+  useEffect(() => {
+    async function fetchNearbyItems() {
+      if (!selectedLocation) return
+      
+      setNearbyLoading(true)
+      try {
+        // Fetch items with location coordinates
+        const { data: itemsData, error } = await supabase
+          .from("items")
+          .select("id, title, item_type, category, latitude, longitude")
+          .eq("status", "available")
+          .not("latitude", "is", null)
+          .not("longitude", "is", null)
+          .limit(10)
+
+        if (error) {
+          console.error('Error fetching nearby items:', error)
+          setNearbyItems([])
+          return
+        }
+
+        if (!itemsData || itemsData.length === 0) {
+          setNearbyItems([])
+          return
+        }
+
+        // Calculate distances and sort by proximity
+        const itemsWithDistance = itemsData
+          .map(item => {
+            const distance = calculateDistance(
+              selectedLocation.latitude,
+              selectedLocation.longitude,
+              item.latitude,
+              item.longitude
+            )
+            
+            // Assign emoji based on category or type
+            let emoji = "📦"
+            if (item.item_type === "food") {
+              emoji = item.category === "fruits" ? "🍎" : 
+                      item.category === "vegetables" ? "🥕" : 
+                      item.category === "grain" ? "🌾" : "🍽️"
+            } else {
+              emoji = item.category === "clothing" ? "👕" : 
+                      item.category === "books" ? "📚" : 
+                      item.category === "baby" ? "👶" : "📦"
+            }
+
+            return {
+              id: item.id,
+              title: item.title,
+              item_type: item.item_type,
+              distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+              emoji,
+              category: item.category
+            }
+          })
+          .filter(item => item.distance <= 5) // Only show items within 5km
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 5) // Show only 5 closest items
+
+        setNearbyItems(itemsWithDistance)
+      } catch (error) {
+        console.error('Error fetching nearby items:', error)
+        setNearbyItems([])
+      } finally {
+        setNearbyLoading(false)
+      }
+    }
+    
+    fetchNearbyItems()
+  }, [selectedLocation])
+
+  // Fetch stories (keeping existing logic)
   useEffect(() => {
     async function fetchStories() {
       const { data, error } = await supabase
@@ -219,15 +357,21 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           {/* Community Stats */}
           <div className="flex flex-wrap justify-center gap-8 text-center mt-12 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-yellow-300 mb-2 drop-shadow-lg">50+</div>
+              <div className="text-4xl font-bold text-yellow-300 mb-2 drop-shadow-lg">
+                {statsLoading ? '...' : `${communityStats.itemsShared}+`}
+              </div>
               <div className="text-sm text-white/90 font-medium">Items Shared</div>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-green-300 mb-2 drop-shadow-lg">20+</div>
+              <div className="text-4xl font-bold text-green-300 mb-2 drop-shadow-lg">
+                {statsLoading ? '...' : `${communityStats.communityMembers}+`}
+              </div>
               <div className="text-sm text-white/90 font-medium">Community Members</div>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-blue-300 mb-2 drop-shadow-lg">2</div>
+              <div className="text-4xl font-bold text-blue-300 mb-2 drop-shadow-lg">
+                {statsLoading ? '...' : communityStats.activeCollaborations}
+              </div>
               <div className="text-sm text-white/90 font-medium">Active Collaborations</div>
             </div>
           </div>
@@ -267,33 +411,67 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             
             {/* Horizontal Scroll Cards */}
             <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
-              {[
-                { emoji: "🥐", title: "Fresh Croissants", distance: "0.2km", type: "Food", color: "orange" },
-                { emoji: "📚", title: "Study Books", distance: "0.5km", type: "Items", color: "purple" },
-                { emoji: "🍎", title: "Apple Harvest", distance: "0.8km", type: "Food", color: "green" },
-                { emoji: "👶", title: "Baby Clothes", distance: "1.1km", type: "Items", color: "pink" },
-                { emoji: "🥕", title: "Fresh Vegetables", distance: "1.3km", type: "Food", color: "orange" }
-              ].map((item, index) => (
-                <button
-                  key={index}
-                  className="flex-shrink-0 w-56 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onClick={onGetStarted}
-                >
-                  <div className="text-4xl mb-4">{item.emoji}</div>
-                  <h3 className="font-semibold text-gray-900 mb-3 text-lg">{item.title}</h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 font-medium">{item.distance} away</span>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      item.color === 'orange' ? 'bg-orange-100 text-orange-700' :
-                      item.color === 'purple' ? 'bg-purple-100 text-purple-700' :
-                      item.color === 'green' ? 'bg-green-100 text-green-700' :
-                      'bg-pink-100 text-pink-700'
-                    }`}>
-                      {item.type}
+              {nearbyLoading ? (
+                // Loading state
+                Array.from({ length: 5 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex-shrink-0 w-56 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 animate-pulse"
+                  >
+                    <div className="w-10 h-10 bg-gray-300 rounded mb-4"></div>
+                    <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 bg-gray-300 rounded w-16"></div>
+                      <div className="h-6 bg-gray-300 rounded w-12"></div>
                     </div>
                   </div>
-                </button>
-              ))}
+                ))
+              ) : nearbyItems.length > 0 ? (
+                // Real nearby items
+                nearbyItems.map((item) => (
+                  <button
+                    key={item.id}
+                    className="flex-shrink-0 w-56 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={onGetStarted}
+                  >
+                    <div className="text-4xl mb-4">{item.emoji}</div>
+                    <h3 className="font-semibold text-gray-900 mb-3 text-lg">{item.title}</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 font-medium">{item.distance}km away</span>
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        item.item_type === 'food' ? 'bg-orange-100 text-orange-700' :
+                        'bg-purple-100 text-purple-700'
+                      }`}>
+                        {item.item_type === 'food' ? 'Food' : 'Items'}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : !selectedLocation ? (
+                // No location selected
+                <div className="flex-shrink-0 w-full text-center p-8">
+                  <div className="text-gray-500 mb-4">
+                    <MapPin className="w-12 h-12 mx-auto mb-2" />
+                    <p className="text-lg font-medium">Enable location to see nearby items</p>
+                    <p className="text-sm">Allow location access to discover items in your area</p>
+                  </div>
+                </div>
+              ) : (
+                // No nearby items found
+                <div className="flex-shrink-0 w-full text-center p-8">
+                  <div className="text-gray-500 mb-4">
+                    <Heart className="w-12 h-12 mx-auto mb-2" />
+                    <p className="text-lg font-medium">No items nearby yet</p>
+                    <p className="text-sm">Be the first to share something in your area!</p>
+                  </div>
+                  <Button
+                    onClick={onGetStarted}
+                    className="bg-green-600 hover:bg-green-700 text-white mt-4"
+                  >
+                    Share Something
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
