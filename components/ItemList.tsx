@@ -336,12 +336,20 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
           <CardContent className="p-8 text-center">
             <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No {itemType} items found
+              {searchTerm
+                ? `${searchTerm} not available, be the first to share`
+                : `No ${itemType} items found`}
             </h3>
             <p className="text-gray-600">
-              {collaborationId 
-                ? "No items have been shared with this collaboration yet."
-                : `No ${itemType} items match your current filters.`
+              {searchTerm
+                ? null
+                : collaborationId
+                  ? "No items have been shared with this collaboration yet. Be the first to share something with your group!"
+                  : (
+                    selectedLocation && selectedLocation.latitude && selectedLocation.longitude
+                      ? `Looks like there are no ${itemType} items nearby. Be the first to share in your area!`
+                      : `No ${itemType} items found. Why not be the first to share?`
+                  )
               }
             </p>
           </CardContent>
@@ -402,63 +410,48 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   
                   {/* Content Section - Enhanced mobile layout */}
                   <div className="flex-1 p-4 pr-20 flex flex-col justify-between">
-                    {/* Top Section - Title & Key Info */}
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <h3 className="font-bold text-base text-gray-900 line-clamp-1 leading-tight group-hover:text-green-700 transition-colors">
-                          {item.title}
-                        </h3>
-                        
-                        {/* Description Preview */}
-                        {item.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2 leading-snug">
-                            {item.description}
-                          </p>
+                    {/* Top Section - Title, Description, and Key Info (tighter spacing) */}
+                    <div>
+                      <h3 className="font-bold text-base text-gray-900 line-clamp-1 leading-tight group-hover:text-green-700 transition-colors mb-1">
+                        {item.title}
+                      </h3>
+                      {item.description && (
+                        <p className="text-sm text-gray-600 line-clamp-2 leading-snug mb-2">
+                          {item.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
+                          {formatCategoryName(item.category)}
+                        </Badge>
+                        <Badge 
+                          variant={item.status === 'available' ? 'default' : 'secondary'}
+                          className={`text-xs font-medium ${
+                            item.status === 'available' ? 'bg-green-500 text-white' :
+                            item.status === 'requested' ? 'bg-amber-100 text-amber-800' :
+                            item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {item.status}
+                        </Badge>
+                        {item.status === 'available' && requestCounts[item.id] > 0 && (
+                          <Badge className="text-xs font-bold bg-amber-100 text-amber-800 animate-pulse">
+                            {requestCounts[item.id]} requests
+                          </Badge>
                         )}
-                        
-                        {/* Category and Status Row */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
-                            {formatCategoryName(item.category)}
-                          </Badge>
-                          <Badge 
-                            variant={item.status === 'available' ? 'default' : 'secondary'}
-                            className={`text-xs font-medium ${
-                              item.status === 'available' ? 'bg-green-500 text-white' :
-                              item.status === 'requested' ? 'bg-amber-100 text-amber-800' :
-                              item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {item.status}
-                          </Badge>
-                          
-                          {/* Request count indicator */}
-                          {item.status === 'available' && requestCounts[item.id] > 0 && (
-                            <Badge className="text-xs font-bold bg-amber-100 text-amber-800 animate-pulse">
-                              {requestCounts[item.id]} requests
-                            </Badge>
-                          )}
-                        </div>
                       </div>
-                      
-                      {/* Key Details Row */}
                       <div className="flex items-center gap-3 flex-wrap">
-                        {/* Quantity */}
                         <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
                           <Package className="h-3 w-3 text-gray-600" />
                           <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
                         </div>
-                        
-                        {/* Condition for non-food items */}
                         {item.condition && (
                           <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full">
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                             <span className="text-xs font-medium text-blue-700">{item.condition}</span>
                           </div>
                         )}
-                        
-                        {/* Urgency indicator for food items */}
                         {urgency && (
                           <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
                             urgency.color === 'red' ? 'bg-red-100 text-red-700' :
@@ -471,8 +464,6 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                             <span>{urgency.text}</span>
                           </div>
                         )}
-                        
-                        {/* Explicit Expiry Date */}
                         {item.expiry_date && (
                           <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full font-medium">
                             Expires: {new Date(item.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -557,208 +548,143 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
             {filteredItems.map((item) => {
               // Precompute urgency to avoid IIFE in JSX
               const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
-              
               return (
-              <Card key={item.id} className="group overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 w-full min-h-[440px] mx-auto relative bg-white flex flex-col">
-                {/* Enhanced Visual Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10"></div>
-                
-                {/* Visual Enhancement: Corner Accent */}
-                <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                
-                <div className="relative h-48 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-50 to-gray-100">
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.title}
-                      className="object-contain object-center w-full h-full group-hover:scale-105 transition-transform duration-300 p-2"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><div class="text-center"><div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-2 mx-auto"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div><span class="text-sm font-medium">No image available</span></div></div>';
-                      }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-3 mx-auto">
-                          <ImageIcon className="h-8 w-8 text-gray-400" />
+                <div key={item.id} className="group bg-gradient-to-br from-white via-blue-50 to-green-50 border border-blue-200 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col min-h-[420px] max-h-[440px] relative overflow-hidden">
+                  <div className="flex flex-col h-full">
+                    <div className="w-full h-40 flex-shrink-0 flex items-center justify-center bg-white border-b border-blue-100 relative">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.title}
+                          className="object-contain w-full h-full rounded-t-2xl"
+                          style={{maxHeight: '160px'}}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.parentElement!.innerHTML = '<div class=\'flex items-center justify-center h-full text-gray-400 text-xs font-medium\'>No image</div>';
+                          }}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center w-full h-full text-gray-300">
+                          <ImageIcon className="h-10 w-10" />
                         </div>
-                        <span className="text-sm font-medium">No image available</span>
-                      </div>
+                      )}
+                      {item.distance !== undefined && (
+                        <span className="absolute top-2 right-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-semibold shadow">
+                          {formatDistance(item.distance)}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  
-                  {/* Enhanced Status Indicator */}
-                  <div className="absolute top-3 left-3">
-                    <div className={`w-4 h-4 rounded-full border-3 border-white shadow-lg ${
-                      item.status === 'available' ? 'bg-green-500' :
-                      item.status === 'requested' ? 'bg-amber-500' :
-                      item.status === 'reserved' ? 'bg-blue-500' :
-                      'bg-gray-500'
-                    }`}></div>
-                  </div>
-                  
-                  {/* Enhanced Distance Badge */}
-                  {item.distance !== undefined && (
-                    <div className="absolute top-3 right-3">
-                      <div className="bg-white/95 backdrop-blur-sm text-blue-700 text-sm px-3 py-1.5 rounded-full font-semibold shadow-lg border border-blue-100">
-                        {formatDistance(item.distance)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Request Count Indicator */}
-                  {item.status === 'available' && requestCounts[item.id] > 0 && (
-                    <div className="absolute bottom-3 right-3">
-                      <div className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
-                        {requestCounts[item.id]} requests
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <CardHeader className="p-4 pb-3 flex-shrink-0 min-h-[220px] flex flex-col">
-                  {/* Title and Category Row */}
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base font-bold text-gray-900 line-clamp-2 leading-tight group-hover:text-green-700 transition-colors flex-1">
-                        {item.title}
-                      </CardTitle>
-                      <div className="flex flex-col gap-1 shrink-0">
-                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
-                          {formatCategoryName(item.category)}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    {/* Status and Description */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={item.status === 'available' ? 'default' : 'secondary'}
-                          className={`text-xs font-medium ${
+                    <div className="flex-1 flex flex-col justify-between p-4 overflow-hidden">
+                      <div className="flex flex-col gap-1 overflow-hidden">
+                        <span className="font-bold text-base text-blue-900 break-words whitespace-normal">{item.title}</span>
+                        {item.description && (
+                          <div className="text-gray-700 text-sm break-words whitespace-normal line-clamp-2">
+                            {item.description}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <Badge className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
+                            {formatCategoryName(item.category)}
+                          </Badge>
+                          <Badge className={`text-xs font-medium ${
                             item.status === 'available' ? 'bg-green-500 text-white' :
                             item.status === 'requested' ? 'bg-amber-100 text-amber-800' :
                             item.status === 'reserved' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {item.status}
-                        </Badge>
-                        
-                        {/* Urgency indicator for food items */}
-                        {urgency && (
-                          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
-                            urgency.color === 'red' ? 'bg-red-100 text-red-700 border border-red-200' :
-                            urgency.color === 'amber' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                            'bg-green-100 text-green-700 border border-green-200'
                           }`}>
-                            {urgency.color === 'red' && <AlertCircle className="h-3 w-3" />}
-                            {urgency.color === 'amber' && <CalendarDays className="h-3 w-3" />}
-                            {urgency.color === 'green' && <CalendarDays className="h-3 w-3" />}
-                            <span>{urgency.text}</span>
+                            {item.status}
+                          </Badge>
+                          {urgency && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold border ${
+                              urgency.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' :
+                              urgency.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                              'bg-green-100 text-green-700 border-green-200'
+                            }`}>
+                              {urgency.text}
+                            </span>
+                          )}
+                          {item.expiry_date && (
+                            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full font-medium">
+                              Expires: {new Date(item.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                            <Package className="h-4 w-4 text-gray-600" />
+                            <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
                           </div>
+                          {item.condition && (
+                            <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              <span className="text-xs font-medium text-blue-700">{item.condition}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                          <MapPin className="h-4 w-4 text-gray-500 shrink-0" />
+                          <span className="truncate">{item.pickup_location}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-gray-500 border-t pt-2 mt-2">
+                          <span>By {profiles[item.user_id]?.full_name || 'Unknown'}</span>
+                          <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {user && user.id !== item.user_id && item.status === 'available' && (
+                          <Button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setRequestingItems(prev => new Set(prev).add(item.id));
+                              setSelectedItem(item);
+                              setTimeout(() => {
+                                setRequestingItems(prev => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(item.id);
+                                  return newSet;
+                                });
+                              }, 2000);
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full shadow hover:scale-105 transition-all duration-200 border-2 border-white"
+                            disabled={requestingItems.has(item.id)}
+                          >
+                            {requestingItems.has(item.id) ? "Requesting..." : "Request"}
+                          </Button>
+                        )}
+                        {user && user.id === item.user_id && (
+                          <>
+                            <Button 
+                              onClick={() => setEditingItem(item)}
+                              variant="outline"
+                              className="bg-white hover:bg-gray-50 border-gray-300 hover:border-green-500 text-gray-700 hover:text-green-700 font-medium py-2 px-3 rounded-full shadow hover:scale-105 transition-all duration-200"
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button 
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this item?')) {
+                                  handleDeleteItem(item.id)
+                                }
+                              }}
+                              variant="outline"
+                              className="bg-white hover:bg-red-50 border-gray-300 hover:border-red-500 text-gray-700 hover:text-red-700 font-medium py-2 px-3 rounded-full shadow hover:scale-105 transition-all duration-200"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {item.status === 'available' && requestCounts[item.id] > 0 && (
+                          <span className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow animate-pulse ml-auto">
+                            {requestCounts[item.id]} requests
+                          </span>
                         )}
                       </div>
-                      
-                      {/* Explicit Expiry Date */}
-                      {item.expiry_date && (
-                        <div className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded border">
-                          <strong>Expires:</strong> {new Date(item.expiry_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        </div>
-                      )}
-                      
-                      {item.description && (
-                        <CardDescription className="line-clamp-2 text-sm text-gray-600 leading-relaxed group-hover:line-clamp-3">
-                          {item.description}
-                        </CardDescription>
-                      )}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-3">
-                  {/* Key Details Row */}
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-gray-500 shrink-0" />
-                      <span className="font-medium text-gray-700">{item.quantity}</span>
-                    </div>
-                    {item.condition && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
-                        <span className="text-gray-600 text-sm">{item.condition}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Location */}
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 text-gray-500 shrink-0" />
-                    <span className="truncate">{item.pickup_location}</span>
-                  </div>
-
-                  {/* Owner and Date */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-100">
-                    <span>By {profiles[item.user_id]?.full_name || 'Unknown'}</span>
-                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="pt-3">
-                    {user && user.id !== item.user_id && item.status === 'available' && (
-                      <Button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setRequestingItems(prev => new Set(prev).add(item.id));
-                          setSelectedItem(item);
-                          
-                          // Remove loading state after a delay
-                          setTimeout(() => {
-                            setRequestingItems(prev => {
-                              const newSet = new Set(prev);
-                              newSet.delete(item.id);
-                              return newSet;
-                            });
-                          }, 2000);
-                        }}
-                        className="flex-1 text-xs py-2 h-auto bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transform hover:scale-105 transition-all duration-200"
-                        size="sm"
-                        disabled={requestingItems.has(item.id)}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        {requestingItems.has(item.id) ? "Requesting..." : "Request"}
-                      </Button>
-                    )}
-                    
-                    {user && user.id === item.user_id && (
-                      <>
-                        <Button 
-                          onClick={() => setEditingItem(item)}
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 text-xs py-2 h-auto hover:scale-105 transition-all duration-200"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button 
-                          onClick={() => {
-                            if (confirm('Are you sure you want to delete this item?')) {
-                              handleDeleteItem(item.id)
-                            }
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 text-xs py-2 h-auto px-3 hover:scale-105 transition-all duration-200"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
               );
             })}
           </div>
