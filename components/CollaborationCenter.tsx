@@ -456,7 +456,7 @@ export default function CollaborationCenter({ onOpenCollaborationChat }: Collabo
           <p className="text-gray-600 mb-4">Be the first to start a community collaboration!</p>
           <Button onClick={() => setShowCreateForm(true)} className="bg-green-600 hover:bg-green-700">
             <Plus className="h-4 w-4 mr-2" />
-            Start Collaboration
+            Start Collaboration.
           </Button>
         </div>
       )}
