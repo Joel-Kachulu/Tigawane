@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
-import { geocodeAddress, getCityCoordinates } from "@/lib/locationService";
+import { geocodeAddress } from "@/lib/locationService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,8 +69,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     quantity: "",
     condition: "",
     expiry_date: "",
-    pickup_location: "",
-    area: "",
+  pickup_label: "",
     is_anonymous: false,
     collaboration_id: null as string | null,
   });
@@ -183,18 +182,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     { value: "old", label: "Old", description: "Well-used but working" },
   ];
 
-  const areaOptions = [
-    "area 18",
-    "area 25",
-    "area 23",
-    "area 43",
-    "area 30",
-    "area 15",
-    "area 14",
-    "area 49",
-    "Chilinde",
-    "Kawale",
-  ];
+
 
   const canProceedToNext = () => {
     switch (currentStep) {
@@ -208,7 +196,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
           (itemType === "food" || formData.condition)
         );
       case 3:
-        return formData.pickup_location.trim() && formData.area;
+        return formData.pickup_label.trim();
       case 4:
         return true; // Impact step has default values
       default:
@@ -241,8 +229,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
       !formData.title.trim() ||
       !formData.category ||
       !formData.quantity.trim() ||
-      !formData.pickup_location.trim() ||
-      !formData.area
+      !formData.pickup_label.trim()
     ) {
       setError("Please fill in all required fields");
       return;
@@ -279,32 +266,30 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         }
       }
 
-      // Get location coordinates
-      let latitude = null;
-      let longitude = null;
-      
-      if (selectedLocation) {
-        latitude = selectedLocation.latitude;
-        longitude = selectedLocation.longitude;
-      } else if (formData.area) {
-        // Try to get coordinates from the selected area/city
-        const cityLocation = getCityCoordinates(formData.area);
-        if (cityLocation) {
-          latitude = cityLocation.latitude;
-          longitude = cityLocation.longitude;
-        }
+      // Geocode pickup_label to get coordinates
+      let pickup_lat = null;
+      let pickup_lon = null;
+      try {
+        const geo = await geocodeAddress(formData.pickup_label.trim());
+        pickup_lat = geo.latitude;
+        pickup_lon = geo.longitude;
+      } catch (geoError) {
+        setError("Could not find that location. Please enter a more specific address or landmark.");
+        setLoading(false);
+        return;
       }
 
-      // Prepare item data
+      // Prepare item data with pickup location
       const itemData = {
         title: formData.title.trim(),
         description: formData.description.trim() || null,
         category: formData.category,
         item_type: itemType,
         quantity: formData.quantity.trim(),
-        pickup_location: formData.pickup_location.trim(),
-        latitude,
-        longitude,
+        pickup_label: formData.pickup_label.trim(),
+        pickup_lat,
+        pickup_lon,
+        pickup_location: formData.pickup_label.trim(), // for backward compatibility
         user_id: user.id,
         status: "available",
         collaboration_id: formData.collaboration_id,
@@ -317,7 +302,6 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
           itemType === "non-food" && formData.condition
             ? formData.condition
             : null,
-        area: formData.area,
         is_anonymous: formData.is_anonymous,
       };
 
@@ -344,8 +328,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
           quantity: "",
           condition: "",
           expiry_date: "",
-          pickup_location: "",
-          area: "",
+          pickup_label: "",
           is_anonymous: false,
           collaboration_id: null,
         });
@@ -649,47 +632,16 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
             <div className="space-y-4">
               <div>
-                <Label
-                  htmlFor="pickup_location"
-                  className="text-base font-medium"
-                >
-                  Pickup location *
-                </Label>
+                <Label htmlFor="pickup_label" className="text-base font-medium">Pickup address/label *</Label>
                 <Input
-                  id="pickup_location"
-                  value={formData.pickup_location}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      pickup_location: e.target.value,
-                    })
-                  }
-                  placeholder="e.g., Near Area 25 Market"
+                  id="pickup_label"
+                  value={formData.pickup_label}
+                  onChange={(e) => setFormData({ ...formData, pickup_label: e.target.value })}
+                  placeholder="e.g., Near Area 25 Market, Lilongwe, or a landmark"
                   className="mt-2 text-base h-12"
+                  required
                 />
               </div>
-
-              <div>
-                <Label className="text-base font-medium">Area/Township *</Label>
-                <Select
-                  value={formData.area}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, area: value })
-                  }
-                >
-                  <SelectTrigger className="mt-2 text-base h-12">
-                    <SelectValue placeholder="Choose your area" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {areaOptions.map((area) => (
-                      <SelectItem key={area} value={area}>
-                        {area.charAt(0).toUpperCase() + area.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Switch
@@ -802,7 +754,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                         {formData.quantity || "Quantity"}
                       </p>
                       <p className="text-sm text-green-600">
-                        📍 {formData.area || "Your area"}
+                        📍 {formData.pickup_label || "Your area"}
                       </p>
                     </div>
                   </div>

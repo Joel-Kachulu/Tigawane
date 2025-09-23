@@ -146,14 +146,14 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         // Fetch items within bounding box for better performance
         const { data: itemsData, error } = await supabase
           .from("items")
-          .select("id, title, item_type, category, latitude, longitude")
+          .select("id, title, item_type, category, pickup_lat, pickup_lon")
           .eq("status", "available")
-          .not("latitude", "is", null)
-          .not("longitude", "is", null)
-          .gte("latitude", minLat)
-          .lte("latitude", maxLat)
-          .gte("longitude", minLng)
-          .lte("longitude", maxLng)
+          .not("pickup_lat", "is", null)
+          .not("pickup_lon", "is", null)
+          .gte("pickup_lat", minLat)
+          .lte("pickup_lat", maxLat)
+          .gte("pickup_lon", minLng)
+          .lte("pickup_lon", maxLng)
           .limit(50) // Increased limit since we're pre-filtering with bounding box
 
         if (error) {
@@ -173,8 +173,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             const distance = calculateDistance(
               selectedLocation.latitude,
               selectedLocation.longitude,
-              item.latitude,
-              item.longitude
+              item.pickup_lat,
+              item.pickup_lon
             )
             
             // Assign emoji based on category or type
@@ -213,6 +213,19 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     
     fetchNearbyItems()
   }, [selectedLocation])
+
+  // Auto-refresh nearby items when tab becomes visible again
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNearbyItems();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [selectedLocation]);
 
   // Fetch stories (keeping existing logic)
   useEffect(() => {

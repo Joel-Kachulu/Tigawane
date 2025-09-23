@@ -4,8 +4,6 @@ export interface Location {
   latitude: number;
   longitude: number;
   address?: string;
-  city?: string;
-  area?: string;
 }
 
 export interface LocationWithDistance extends Location {
@@ -122,24 +120,6 @@ export const reverseGeocode = async (
 };
 
 // Common cities in Malawi with their coordinates
-export const MALAWI_CITIES = {
-  'Lilongwe': { latitude: -13.9626, longitude: 33.7741 },
-  'Blantyre': { latitude: -15.7861, longitude: 35.0058 },
-  'Mzuzu': { latitude: -11.4587, longitude: 34.0151 },
-  'Zomba': { latitude: -15.3833, longitude: 35.3333 },
-  'Kasungu': { latitude: -13.0333, longitude: 33.4833 },
-  'Mangochi': { latitude: -14.4667, longitude: 35.2667 },
-  'Karonga': { latitude: -9.9333, longitude: 33.9333 },
-  'Salima': { latitude: -13.7833, longitude: 34.4333 },
-  'Nkhotakota': { latitude: -12.9167, longitude: 34.3000 },
-  'Dedza': { latitude: -14.3667, longitude: 34.3333 },
-};
-
-// Get coordinates for a city
-export const getCityCoordinates = (cityName: string): Location | null => {
-  const city = MALAWI_CITIES[cityName as keyof typeof MALAWI_CITIES];
-  return city ? { ...city, city: cityName } : null;
-};
 
 // Validate coordinates
 export const isValidCoordinates = (latitude: number, longitude: number): boolean => {

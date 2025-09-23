@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { geocodeAddress } from "@/lib/locationService"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -122,6 +123,20 @@ export default function EditItemModal({ item, isOpen, onClose, onItemUpdated }: 
         }
       }
 
+      // Geocode pickup location to get coordinates
+      let pickup_lat = null;
+      let pickup_lon = null;
+      let pickup_label = formData.pickup_location.trim();
+      try {
+        const geo = await geocodeAddress(pickup_label);
+        pickup_lat = geo.latitude;
+        pickup_lon = geo.longitude;
+      } catch (geoError) {
+        alert("Could not find that location. Please enter a more specific address or landmark.");
+        setLoading(false);
+        return;
+      }
+
       // Prepare update data
       const updateData = {
         title: formData.title.trim(),
@@ -130,7 +145,10 @@ export default function EditItemModal({ item, isOpen, onClose, onItemUpdated }: 
         quantity: formData.quantity.trim(),
         condition: item.item_type === "non-food" ? formData.condition || null : null,
         expiry_date: item.item_type === "food" && formData.expiry_date ? formData.expiry_date : null,
-        pickup_location: formData.pickup_location.trim(),
+        pickup_location: pickup_label,
+        pickup_label,
+        pickup_lat,
+        pickup_lon,
         image_url: imageUrl,
         status: formData.status,
       }

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Navigation, Globe, Settings, RefreshCw, ChevronDown } from 'lucide-react';
-import { formatDistance, RADIUS_OPTIONS, getCityCoordinates } from '@/lib/locationService';
+import { formatDistance, RADIUS_OPTIONS } from '@/lib/locationService';
 
 interface LocationSelectorProps {
   showRadiusSelector?: boolean;
@@ -24,7 +24,7 @@ export default function LocationSelector({ showRadiusSelector = true, className 
     setLocationRadius,
     getCurrentUserLocation,
     clearLocationError,
-    availableCities,
+  // availableCities,
   } = useLocation();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -36,12 +36,7 @@ export default function LocationSelector({ showRadiusSelector = true, className 
     setIsRefreshing(false);
   };
 
-  const handleCityChange = (cityName: string) => {
-    const cityLocation = getCityCoordinates(cityName);
-    if (cityLocation) {
-      setSelectedLocation(cityLocation);
-    }
-  };
+
 
   const handleRadiusChange = (radius: string) => {
     setLocationRadius(parseInt(radius));
@@ -49,30 +44,18 @@ export default function LocationSelector({ showRadiusSelector = true, className 
 
   const getLocationDisplay = () => {
     if (!selectedLocation) return 'Select location';
-    
-    if (selectedLocation.city) {
-      return selectedLocation.city;
-    }
-    
     if (selectedLocation.address) {
       return selectedLocation.address.split(',')[0]; // Show first part of address
     }
-    
     return `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`;
   };
 
   const getCompactDisplay = () => {
     if (!selectedLocation) return 'Set Location';
-    
-    if (selectedLocation.city) {
-      return `${selectedLocation.city} (${formatDistance(locationRadius)})`;
-    }
-    
     if (selectedLocation.address) {
       const shortAddress = selectedLocation.address.split(',')[0];
       return `${shortAddress} (${formatDistance(locationRadius)})`;
     }
-    
     return `${formatDistance(locationRadius)} radius`;
   };
 
@@ -146,25 +129,7 @@ export default function LocationSelector({ showRadiusSelector = true, className 
             </div>
           )}
 
-          {/* City Selector */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select City:</label>
-            <Select
-              value={selectedLocation?.city || ''}
-              onValueChange={handleCityChange}
-            >
-              <SelectTrigger className="h-12 px-4 rounded-xl border-2 border-gray-200 hover:border-green-500 transition-colors touch-target-lg">
-                <SelectValue placeholder="Choose a city" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCities.map((city) => (
-                  <SelectItem key={city} value={city}>
-                    {city}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
 
           {/* Radius Selector */}
           {showRadiusSelector && (

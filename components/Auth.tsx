@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft } from "lucide-react"
-import { getCityCoordinates } from "@/lib/locationService"
 
 interface AuthProps {
   onBackToLanding?: () => void
@@ -69,17 +68,9 @@ export default function Auth({ onBackToLanding }: AuthProps) {
         
         if (profileError) {
           console.error("Profile creation error:", profileError)
-          // Get location coordinates if location is provided
+          // City/area logic removed: latitude/longitude now handled elsewhere if needed
           let latitude = null;
           let longitude = null;
-          
-          if (location) {
-            const cityLocation = getCityCoordinates(location);
-            if (cityLocation) {
-              latitude = cityLocation.latitude;
-              longitude = cityLocation.longitude;
-            }
-          }
 
           // Try to create profile manually if trigger failed
           const { error: insertError } = await supabase

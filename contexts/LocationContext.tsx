@@ -2,7 +2,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getCurrentLocation, Location, getCityCoordinates, MALAWI_CITIES } from '@/lib/locationService';
+import { getCurrentLocation, Location } from '@/lib/locationService';
 
 interface LocationContextType {
   userLocation: Location | null;
@@ -15,7 +15,6 @@ interface LocationContextType {
   setLocationRadius: (radius: number) => void;
   getCurrentUserLocation: () => Promise<void>;
   clearLocationError: () => void;
-  availableCities: string[];
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -39,12 +38,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  const availableCities = Object.keys(MALAWI_CITIES);
 
   const getCurrentUserLocation = async () => {
     setIsLoadingLocation(true);
     setLocationError(null);
-    
     try {
       const location = await getCurrentLocation();
       setUserLocation(location);
@@ -53,13 +50,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     } catch (error) {
       console.error('❌ Error getting user location:', error);
       setLocationError(error instanceof Error ? error.message : 'Failed to get location');
-      
-      // Fallback to Lilongwe if geolocation fails
-      const fallbackLocation = getCityCoordinates('Lilongwe');
-      if (fallbackLocation) {
-        setSelectedLocation(fallbackLocation);
-        console.log('📍 Using fallback location (Lilongwe):', fallbackLocation);
-      }
+      // No fallback to Lilongwe; user must manually select location if GPS fails
     } finally {
       setIsLoadingLocation(false);
     }
@@ -85,7 +76,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     setLocationRadius,
     getCurrentUserLocation,
     clearLocationError,
-    availableCities,
   };
 
   return (

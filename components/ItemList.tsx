@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useLocation } from "@/contexts/LocationContext"
-import { formatDistance, calculateDistance } from "@/lib/locationService"
+import { formatDistance } from "@/lib/locationService"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,9 +30,10 @@ interface ItemRecord {
   status: string
   created_at: string
   collaboration_id?: string | null
-  latitude?: number | null
-  longitude?: number | null
-  distance?: number
+  pickup_lat?: number | null
+  pickup_lon?: number | null
+  pickup_label?: string | null
+  distance_m?: number | null
   profiles?: {
     full_name: string | null
     location: string | null
@@ -94,97 +95,115 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
     fetchItems(true)
   }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter, selectedLocation, locationRadius])
 
+  // Auto-refresh items when tab becomes visible again
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchItems(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter, selectedLocation, locationRadius]);
+
   const fetchItems = async (reset = false) => {
-    try {
-      const pageToFetch = reset ? 0 : currentPage
-      console.log(`🔍 Fetching ${itemType} items (page ${pageToFetch})...`)
-
-      let query = supabase
-        .from("items")
-        .select("*")
-        .eq("item_type", itemType)
-        .order("created_at", { ascending: false })
-
-      // Add collaboration filtering
-      if (collaborationId) {
-        query = query.eq("collaboration_id", collaborationId)
-      } else {
-        // If not filtering by collaboration, exclude collaboration items
-        query = query.is("collaboration_id", null)
+  setLoading(true);
+  try {
+      // Validate location parameters before making the RPC call
+      if (!selectedLocation || typeof selectedLocation.latitude !== 'number' || typeof selectedLocation.longitude !== 'number') {
+        setItems([]);
+        setLoading(false);
+        return;
       }
-
-      if (searchTerm) {
-        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-      }
-
-      if (categoryFilter !== "all") {
-        console.log(`🔍 Filtering by category: ${categoryFilter}`)
-        query = query.eq("category", categoryFilter)
-      }
-
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter)
-      }
-
-      // Execute the query first
-      const { data, error } = await query
-        .range(pageToFetch * itemsPerPage, (pageToFetch + 1) * itemsPerPage - 1)
-
-      if (error) throw error
-
-      let filteredData = data || [];
-
-      // Add location-based filtering if location is selected (client-side)
-      if (selectedLocation && selectedLocation.latitude && selectedLocation.longitude) {
-        console.log(`🔍 Filtering by location: ${selectedLocation.latitude}, ${selectedLocation.longitude} (${locationRadius}km radius)`);
-        
-        filteredData = filteredData.filter(item => {
-          if (!item.latitude || !item.longitude) return false;
-          
-          const distance = calculateDistance(
-            selectedLocation.latitude,
-            selectedLocation.longitude,
-            item.latitude,
-            item.longitude
-          );
-          
-          // Add distance to item for display
-          item.distance = distance;
-          
-          return distance <= locationRadius;
+      const pageToFetch = reset ? 0 : currentPage;
+      const radius = locationRadius || 10;
+      // Defensive: log parameters before RPC
+      if (isNaN(selectedLocation.latitude) || isNaN(selectedLocation.longitude) || isNaN(radius)) {
+        console.error('❌ Invalid location or radius for get_items_nearby:', {
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+          radius
         });
-
-        // Sort by distance
-        filteredData.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        setItems([]);
+        setLoading(false);
+        return;
       }
-
-      console.log(`✅ Successfully fetched ${filteredData.length} ${itemType} items`)
-
+      console.log('[RPC DEBUG] Calling get_items_nearby with:', {
+        lat: selectedLocation.latitude,
+        lon: selectedLocation.longitude,
+        radius_km: radius,
+        limit_count: itemsPerPage
+      });
+      const { data, error } = await supabase.rpc("get_items_nearby", {
+        lat: selectedLocation.latitude,
+        lon: selectedLocation.longitude,
+        radius_km: radius,
+        limit_count: itemsPerPage
+      });
+      console.log('[RPC DEBUG] get_items_nearby result:', { data, error });
+      if (error) {
+        // Log full error details for debugging
+        console.error(`❌ Error fetching ${itemType} items (Supabase RPC):`, error, {
+          lat: selectedLocation.latitude,
+          lon: selectedLocation.longitude,
+          radius_km: radius,
+          limit_count: itemsPerPage
+        });
+        setItems([]);
+        setHasMore(false);
+        return;
+      }
+      let filteredData = (data || [])
+        .filter(item => item.item_type === itemType)
+        .filter(item =>
+          (!collaborationId && !item.collaboration_id) ||
+          (collaborationId && item.collaboration_id === collaborationId)
+        );
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filteredData = filteredData.filter(item =>
+          (item.title && item.title.toLowerCase().includes(term)) ||
+          (item.description && item.description.toLowerCase().includes(term))
+        );
+      }
+      if (categoryFilter !== "all") {
+        filteredData = filteredData.filter(item => item.category === categoryFilter);
+      }
+      if (statusFilter !== "all") {
+        filteredData = filteredData.filter(item => item.status === statusFilter);
+      }
+      // Sort by distance_m
+      filteredData.sort((a, b) => (a.distance_m || 0) - (b.distance_m || 0));
       if (reset) {
-        setItems(filteredData)
-        setCurrentPage(0)
+        setItems(filteredData);
+        setCurrentPage(0);
       } else {
-        setItems(prev => [...prev, ...filteredData])
+        setItems(prev => [...prev, ...filteredData]);
       }
-
-      setHasMore(filteredData.length === itemsPerPage)
-
+      setHasMore(filteredData.length === itemsPerPage);
       // Fetch user profiles for items
       if (filteredData && filteredData.length > 0) {
-        const userIds = [...new Set(filteredData.map(item => item.user_id))]
-        await fetchProfiles(userIds)
-        
-        // Fetch request counts for owner's items
+        const userIds = [...new Set(filteredData.map(item => item.user_id))] as string[];
+        await fetchProfiles(userIds);
         if (user) {
-          await fetchRequestCounts(filteredData.filter(item => item.user_id === user.id))
+          await fetchRequestCounts(filteredData.filter(item => item.user_id === user.id));
         }
       }
-    } catch (error) {
-      console.error(`❌ Error fetching ${itemType} items:`, error)
+    } catch (error: any) {
+      // Log error with more detail if possible
+      if (error && typeof error === 'object') {
+        console.error(`❌ Error fetching ${itemType} items (catch):`, error.message || error, error.stack || '');
+      } else {
+        console.error(`❌ Error fetching ${itemType} items (catch):`, error);
+      }
+      setItems([]);
+      setHasMore(false);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchProfiles = async (userIds: string[]) => {
     try {
@@ -357,7 +376,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       ) : (
         <>
           {/* Mobile: Vertical Feed Layout */}
-          <div className="lg:hidden space-y-4">
+          <div className="lg:hidden flex flex-col gap-4 px-1">
             {filteredItems.map((item) => {
               // Precompute urgency to avoid IIFE in JSX
               const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
@@ -371,20 +390,18 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                       <img
                         src={item.image_url}
                         alt={item.title}
-                        className="object-contain object-center w-full h-full group-hover:scale-105 transition-transform duration-300 p-1"
+                        className="object-cover object-center w-full h-full rounded-xl group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.parentElement!.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-xs font-medium">No image</div>';
+                          target.onerror = null;
+                          target.src = '/placeholder.jpg';
                         }}
                       />
                     ) : (
-                      <div className="flex items-center justify-center h-full text-gray-400">
-                        <div className="text-center">
-                          <ImageIcon className="h-8 w-8 mx-auto mb-1 text-gray-300" />
-                          <span className="text-xs font-medium">No image</span>
-                        </div>
+                      <div className="flex items-center justify-center w-full h-full text-gray-400 bg-gray-100 rounded-xl">
+                        <ImageIcon className="h-8 w-8 mx-auto mb-1 text-gray-300" />
+                        <span className="text-xs font-medium">No image</span>
                       </div>
                     )}
                     
@@ -399,10 +416,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </div>
                     
                     {/* Distance Badge - More prominent */}
-                    {item.distance !== undefined && (
+                    {item.distance_m !== undefined && (
                       <div className="absolute top-2 right-2">
                         <div className="bg-blue-600 text-white text-sm px-3 py-1 rounded-full font-bold shadow-lg border-2 border-white">
-                          {formatDistance(item.distance)}
+                          {formatDistance((item.distance_m || 0) / 1000)}
                         </div>
                       </div>
                     )}
@@ -474,9 +491,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     
                     {/* Bottom Section - Location & Owner */}
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-gray-600" title={item.pickup_location}>
+                      <div className="flex items-center gap-1 text-xs text-gray-600" title={item.pickup_label}>
                         <MapPin className="h-3 w-3 shrink-0 text-gray-500" />
-                        <span className="line-clamp-1 font-medium">{item.pickup_location}</span>
+                        <span className="line-clamp-1 font-medium">{item.pickup_label}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <span className="truncate">By {profiles[item.user_id]?.full_name || 'Unknown'}</span>
@@ -569,9 +586,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           <ImageIcon className="h-10 w-10" />
                         </div>
                       )}
-                      {item.distance !== undefined && (
-                        <span className="absolute top-2 right-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-semibold shadow">
-                          {formatDistance(item.distance)}
+                      {/* Distance Badge - float on top of image */}
+                      {item.distance_m !== undefined && (
+                        <span className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg border-2 border-white z-10">
+                          {formatDistance((item.distance_m || 0) / 1000)}
                         </span>
                       )}
                     </div>
@@ -624,7 +642,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
                           <MapPin className="h-4 w-4 text-gray-500 shrink-0" />
-                          <span className="truncate">{item.pickup_location}</span>
+                          <span className="truncate">{item.pickup_label}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs text-gray-500 border-t pt-2 mt-2">
                           <span>By {profiles[item.user_id]?.full_name || 'Unknown'}</span>
