@@ -1,4 +1,6 @@
 "use client"
+// ...existing imports...
+
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -67,6 +69,16 @@ interface NearbyItem {
 }
 
 export default function LandingPage({ onGetStarted }: LandingPageProps) {
+  // Manual location picker state
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [manualCity, setManualCity] = useState("")
+  const cityOptions = [
+    { name: "Lilongwe", latitude: -13.9833, longitude: 33.7833 },
+    { name: "Blantyre", latitude: -15.7879, longitude: 35.0133 },
+    { name: "Mzuzu", latitude: -11.4656, longitude: 34.0207 },
+    { name: "Zomba", latitude: -15.3850, longitude: 35.3186 },
+    { name: "Mangochi", latitude: -14.4781, longitude: 35.2645 }
+  ]
   const [stories, setStories] = useState<any[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -82,7 +94,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const heroRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<(HTMLElement | null)[]>([])
   
-  const { userLocation, selectedLocation } = useLocation()
+  const { userLocation, selectedLocation, setSelectedLocation } = useLocation()
+
+  // On mount, check for manual location in localStorage and set if present
+  useEffect(() => {
+    const stored = localStorage.getItem('tigawane_manual_location')
+    if (stored) {
+      try {
+        const loc = JSON.parse(stored)
+        if (loc && loc.latitude && loc.longitude) {
+          setSelectedLocation(loc)
+        }
+      } catch {}
+    }
+  }, [setSelectedLocation])
 
   // Fetch community stats from database
   useEffect(() => {

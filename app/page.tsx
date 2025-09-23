@@ -521,12 +521,16 @@ function AppContent() {
               <div className="text-center">
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find food shared by your community</p>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6">
-                <div className="lg:col-span-1 order-2 lg:order-1">
-                  <LocationSelector />
-                </div>
-                <div className="lg:col-span-4 order-1 lg:order-2">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+                <div className="col-span-1 lg:col-span-4">
                   <ItemList key={`food-${refreshTrigger}`} itemType="food" collaborationId={null} />
+                </div>
+              </div>
+              {/* Floating LocationSelector */}
+              <div className="fixed bottom-6 right-6 z-50">
+                <div className="bg-gradient-to-br from-green-400 via-blue-400 to-yellow-300 rounded-2xl shadow-2xl border-4 border-white p-4 flex flex-col items-center min-w-[240px] animate-fade-in-up">
+                  <div className="mb-2 text-white font-bold text-lg drop-shadow">Location & Radius</div>
+                  <LocationSelector />
                 </div>
               </div>
             </div>
@@ -537,12 +541,15 @@ function AppContent() {
               <div className="text-center">
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600">Find clothes, shoes, and household items</p>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6">
-                <div className="lg:col-span-1 order-2 lg:order-1">
-                  <LocationSelector />
-                </div>
-                <div className="lg:col-span-4 order-1 lg:order-2">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+                <div className="col-span-1 lg:col-span-4">
                   <ItemList key={`items-${refreshTrigger}`} itemType="non-food" collaborationId={null} />
+                </div>
+              </div>
+              {/* Floating LocationSelector */}
+              <div className="fixed bottom-6 right-6 z-50">
+                <div className="bg-white rounded-2xl shadow-xl border border-green-100/70 p-4 flex flex-col items-center min-w-[220px]">
+                  <LocationSelector />
                 </div>
               </div>
             </div>

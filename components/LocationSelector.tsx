@@ -29,6 +29,33 @@ export default function LocationSelector({ showRadiusSelector = true, className 
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [customCity, setCustomCity] = useState("");
+  const [isSettingCity, setIsSettingCity] = useState(false);
+  // Handler for setting custom city as location
+  // Geocode city name to coordinates (simple fetch to Nominatim)
+  const handleSetCustomCity = async () => {
+    if (!customCity) return;
+    setIsSettingCity(true);
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(customCity)}&format=json&limit=1`);
+      const data = await resp.json();
+      if (data && data.length > 0) {
+        setSelectedLocation({
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon),
+          address: customCity
+        });
+      } else {
+        // fallback: set only city name, coordinates null
+        setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
+      }
+    } catch {
+      setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
+    }
+    setCustomCity("");
+    setIsSettingCity(false);
+    setIsOpen(false);
+  };
 
   const handleLocationRefresh = async () => {
     setIsRefreshing(true);
@@ -80,7 +107,26 @@ export default function LocationSelector({ showRadiusSelector = true, className 
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4">
+  <div className="space-y-4">
+          {/* Custom City Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Set Location Manually:</label>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-2"
+              placeholder="Enter city or area name (e.g. Lilongwe)"
+              value={customCity}
+              onChange={e => setCustomCity(e.target.value)}
+              disabled={isSettingCity}
+            />
+            <Button
+              className="mt-2 bg-green-600 hover:bg-green-700 text-white"
+              disabled={!customCity || isSettingCity}
+              onClick={handleSetCustomCity}
+            >
+              {isSettingCity ? 'Setting...' : 'Set Location'}
+            </Button>
+          </div>
           {/* Current Location Display */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
