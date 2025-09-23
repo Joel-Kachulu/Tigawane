@@ -120,97 +120,88 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         setStatsLoading(false)
       }
     }
-    
     fetchCommunityStats()
   }, [])
 
-  // Fetch nearby items when user location is available
-  useEffect(() => {
-    async function fetchNearbyItems() {
-      if (!selectedLocation) {
-        setNearbyLoading(false)
-        return
-      }
-      
-      setNearbyLoading(true)
-      try {
-        // Create a bounding box around the user's location (approximately 10km radius)
-        const kmPerDegree = 111 // Rough approximation: 1 degree ≈ 111 km
-        const radiusInDegrees = 10 / kmPerDegree // 10km radius
-        
-        const minLat = selectedLocation.latitude - radiusInDegrees
-        const maxLat = selectedLocation.latitude + radiusInDegrees
-        const minLng = selectedLocation.longitude - radiusInDegrees
-        const maxLng = selectedLocation.longitude + radiusInDegrees
-
-        // Fetch items within bounding box for better performance
-        const { data: itemsData, error } = await supabase
-          .from("items")
-          .select("id, title, item_type, category, pickup_lat, pickup_lon")
-          .eq("status", "available")
-          .not("pickup_lat", "is", null)
-          .not("pickup_lon", "is", null)
-          .gte("pickup_lat", minLat)
-          .lte("pickup_lat", maxLat)
-          .gte("pickup_lon", minLng)
-          .lte("pickup_lon", maxLng)
-          .limit(50) // Increased limit since we're pre-filtering with bounding box
-
-        if (error) {
-          console.error('Error fetching nearby items:', error)
-          setNearbyItems([])
-          return
-        }
-
-        if (!itemsData || itemsData.length === 0) {
-          setNearbyItems([])
-          return
-        }
-
-        // Calculate distances and sort by proximity
-        const itemsWithDistance = itemsData
-          .map(item => {
-            const distance = calculateDistance(
-              selectedLocation.latitude,
-              selectedLocation.longitude,
-              item.pickup_lat,
-              item.pickup_lon
-            )
-            
-            // Assign emoji based on category or type
-            let emoji = "📦"
-            if (item.item_type === "food") {
-              emoji = item.category === "fruits" ? "🍎" : 
-                      item.category === "vegetables" ? "🥕" : 
-                      item.category === "grain" ? "🌾" : "🍽️"
-            } else {
-              emoji = item.category === "clothing" ? "👕" : 
-                      item.category === "books" ? "📚" : 
-                      item.category === "baby" ? "👶" : "📦"
-            }
-
-            return {
-              id: item.id,
-              title: item.title,
-              item_type: item.item_type,
-              distance: Math.round(distance * 10) / 10, // Round to 1 decimal
-              emoji,
-              category: item.category
-            }
-          })
-          .filter(item => item.distance <= 5) // Only show items within 5km
-          .sort((a, b) => a.distance - b.distance)
-          .slice(0, 5) // Show only 5 closest items
-
-        setNearbyItems(itemsWithDistance)
-      } catch (error) {
+  // Fetch nearby items function (moved outside useEffect)
+  async function fetchNearbyItems() {
+    if (!selectedLocation) {
+      setNearbyLoading(false)
+      return
+    }
+    setNearbyLoading(true)
+    try {
+      // Create a bounding box around the user's location (approximately 10km radius)
+      const kmPerDegree = 111 // Rough approximation: 1 degree ≈ 111 km
+      const radiusInDegrees = 10 / kmPerDegree // 10km radius
+      const minLat = selectedLocation.latitude - radiusInDegrees
+      const maxLat = selectedLocation.latitude + radiusInDegrees
+      const minLng = selectedLocation.longitude - radiusInDegrees
+      const maxLng = selectedLocation.longitude + radiusInDegrees
+      // Fetch items within bounding box for better performance
+      const { data: itemsData, error } = await supabase
+        .from("items")
+        .select("id, title, item_type, category, pickup_lat, pickup_lon")
+        .eq("status", "available")
+        .not("pickup_lat", "is", null)
+        .not("pickup_lon", "is", null)
+        .gte("pickup_lat", minLat)
+        .lte("pickup_lat", maxLat)
+        .gte("pickup_lon", minLng)
+        .lte("pickup_lon", maxLng)
+        .limit(50) // Increased limit since we're pre-filtering with bounding box
+      if (error) {
         console.error('Error fetching nearby items:', error)
         setNearbyItems([])
-      } finally {
-        setNearbyLoading(false)
+        return
       }
+      if (!itemsData || itemsData.length === 0) {
+        setNearbyItems([])
+        return
+      }
+      // Calculate distances and sort by proximity
+      const itemsWithDistance = itemsData
+        .map(item => {
+          const distance = calculateDistance(
+            selectedLocation.latitude,
+            selectedLocation.longitude,
+            item.pickup_lat,
+            item.pickup_lon
+          )
+          // Assign emoji based on category or type
+          let emoji = "📦"
+          if (item.item_type === "food") {
+            emoji = item.category === "fruits" ? "🍎" : 
+                    item.category === "vegetables" ? "🥕" : 
+                    item.category === "grain" ? "🌾" : "🍽️"
+          } else {
+            emoji = item.category === "clothing" ? "👕" : 
+                    item.category === "books" ? "📚" : 
+                    item.category === "baby" ? "👶" : "📦"
+          }
+          return {
+            id: item.id,
+            title: item.title,
+            item_type: item.item_type,
+            distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+            emoji,
+            category: item.category
+          }
+        })
+        .filter(item => item.distance <= 5) // Only show items within 5km
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 5) // Show only 5 closest items
+      setNearbyItems(itemsWithDistance)
+    } catch (error) {
+      console.error('Error fetching nearby items:', error)
+      setNearbyItems([])
+    } finally {
+      setNearbyLoading(false)
     }
-    
+  }
+
+  // Fetch nearby items when user location is available
+  useEffect(() => {
     fetchNearbyItems()
   }, [selectedLocation])
 
