@@ -34,7 +34,7 @@ export default function AddFood({ onFoodAdded }: AddFoodProps) {
     setLoading(true)
 
     try {
-      let imageUrl = null
+  let imageUrl: string | null = null
 
       // Upload image if provided
       if (imageFile) {
@@ -47,10 +47,8 @@ export default function AddFood({ onFoodAdded }: AddFoodProps) {
           console.error("Upload error:", uploadError)
           // Continue without image if upload fails
         } else {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("food-images").getPublicUrl(fileName)
-          imageUrl = publicUrl
+          const { data } = supabase.storage.from("food-images").getPublicUrl(fileName)
+          imageUrl = data?.publicUrl ?? null
         }
       }
 

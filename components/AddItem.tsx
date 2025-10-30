@@ -243,7 +243,7 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
     setLoading(true);
 
     try {
-      let imageUrl = null;
+  let imageUrl: string | null = null;
 
       // Upload image if provided
       if (imageFile) {
@@ -256,10 +256,8 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
             .upload(fileName, imageFile);
 
           if (!uploadError) {
-            const {
-              data: { publicUrl },
-            } = supabase.storage.from("item-images").getPublicUrl(fileName);
-            imageUrl = publicUrl;
+            const { data } = supabase.storage.from("item-images").getPublicUrl(fileName);
+            imageUrl = data?.publicUrl ?? null;
           }
         } catch (uploadErr) {
           console.warn("Image upload error:", uploadErr);
@@ -267,12 +265,24 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
       }
 
       // Geocode pickup_label to get coordinates
-      let pickup_lat = null;
-      let pickup_lon = null;
+      let pickup_lat: number | null = null;
+      let pickup_lon: number | null = null;
       try {
         const geo = await geocodeAddress(formData.pickup_label.trim());
-        pickup_lat = geo.latitude;
-        pickup_lon = geo.longitude;
+
+        // Coerce to numbers and validate (geocoder may return strings)
+        const latVal: any = (geo as any)?.latitude
+        const lonVal: any = (geo as any)?.longitude
+
+        const latNum = latVal == null ? null : Number(latVal)
+        const lonNum = lonVal == null ? null : Number(lonVal)
+
+        if (latNum === null || lonNum === null || Number.isNaN(latNum) || Number.isNaN(lonNum)) {
+          throw new Error('Invalid coordinates')
+        }
+
+        pickup_lat = latNum
+        pickup_lon = lonNum
       } catch (geoError) {
         setError("Could not find that location. Please enter a more specific address or landmark.");
         setLoading(false);

@@ -115,17 +115,15 @@ export default function EditItemModal({ item, isOpen, onClose, onItemUpdated }: 
           console.error("Upload error:", uploadError)
           alert("Image upload failed, but item will be updated without new photo")
         } else {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("item-images").getPublicUrl(fileName)
-          imageUrl = publicUrl
+          const { data } = supabase.storage.from("item-images").getPublicUrl(fileName)
+          imageUrl = data?.publicUrl ?? null
           console.log("New image uploaded successfully:", imageUrl)
         }
       }
 
       // Geocode pickup location to get coordinates
-      let pickup_lat = null;
-      let pickup_lon = null;
+      let pickup_lat: number | null = null;
+      let pickup_lon: number | null = null;
       let pickup_label = formData.pickup_location.trim();
       try {
         const geo = await geocodeAddress(pickup_label);
