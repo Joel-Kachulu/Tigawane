@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2, Image as ImageIcon, AlertCircle } from "lucide-react"
 import ClaimFoodModal from "./ClaimFoodModal"
 import EditItemModal from "./EditItemModal"
+import ImageWithFallback from "./ImageWithFallback"
+
+
 
 interface ItemRecord {
   id: string
@@ -387,16 +390,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   {/* Image Section - Enhanced size for mobile */}
                   <div className="relative w-32 min-h-36 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
                     {item.image_url ? (
-                      <img
+                      // centralized image component with fallback
+                      <ImageWithFallback
                         src={item.image_url}
                         alt={item.title}
                         className="object-cover object-center w-full h-full rounded-xl group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/placeholder.jpg';
-                        }}
                       />
                     ) : (
                       <div className="flex items-center justify-center w-full h-full text-gray-400 bg-gray-100 rounded-xl">
@@ -491,7 +489,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     
                     {/* Bottom Section - Location & Owner */}
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-gray-600" title={item.pickup_label}>
+                      <div className="flex items-center gap-1 text-xs text-gray-600" title={item.pickup_label ?? ''}>
                         <MapPin className="h-3 w-3 shrink-0 text-gray-500" />
                         <span className="line-clamp-1 font-medium">{item.pickup_label}</span>
                       </div>
@@ -570,16 +568,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   <div className="flex flex-col h-full">
                     <div className="w-full h-40 flex-shrink-0 flex items-center justify-center bg-white border-b border-blue-100 relative">
                       {item.image_url ? (
-                        <img
+                        <ImageWithFallback
                           src={item.image_url}
                           alt={item.title}
                           className="object-contain w-full h-full rounded-t-2xl"
-                          style={{maxHeight: '160px'}}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.parentElement!.innerHTML = '<div class=\'flex items-center justify-center h-full text-gray-400 text-xs font-medium\'>No image</div>';
-                          }}
+                          style={{ maxHeight: '160px' }}
                         />
                       ) : (
                         <div className="flex items-center justify-center w-full h-full text-gray-300">

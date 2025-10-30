@@ -6,21 +6,46 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, MessageCircle, MapPin, Heart, Users, Globe, Sparkles } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
+import Image from 'next/image'
 import SubmitStoryModal from "./SubmitStoryModal"
 import { supabase } from "@/lib/supabase"
 import { useLocation } from "@/contexts/LocationContext"
 import { calculateDistance } from "@/lib/locationService"
 // Authentic images of African people sharing and community building
-const HERO_IMAGE_URL = "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=1200&q=80" // African community sharing
-// Slideshow images for hero background featuring African community sharing and sustainable practices
+const HERO_IMAGE_URL = "/images/hero1.jpg" // local fallback hero image
+// Slideshow images for hero background (use files in public/images)
 const HERO_IMAGES = [
-  "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=1200&q=80", // African community sharing food
-  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1200&q=80", // Black family sharing meal
-  "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1200&q=80", // African women preparing food together
-  "https://images.unsplash.com/photo-1528740561666-dc2479dc08ab?auto=format&fit=crop&w=1200&q=80", // Community gathering with food
-  "https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1200&q=80", // African people sharing traditional meal
+  "/images/people sharing.avif",
+  "/images/tig5.webp",
+  "/images/girlD.png",
+  "/images/tigawaneD.png",
+  "/images/ready.avif",
+  "/images/food1.jpg"
 ]
 const HERO_IMAGE_ALT = "African people sharing food and building community together"
+
+// Normalize external links (e.g., Unsplash page URLs) to direct image URLs usable in CSS/background-image.
+function normalizeImageUrl(url: string) {
+  if (!url) return url
+  try {
+    const u = new URL(url)
+    // Handle unsplash page links like https://unsplash.com/photos/<slug>-<id>
+    if (u.hostname.includes('unsplash.com') && u.pathname.startsWith('/photos/')) {
+      // split path into segments and pick the last meaningful segment
+      const parts = u.pathname.split('/').filter(Boolean)
+      const last = parts[parts.length - 1] || ''
+      // Unsplash page slugs often contain hyphen-separated slug and id (e.g. 'photo-slug-abc123')
+      const id = last.split('-').pop()
+      if (id) {
+        // Use source.unsplash which redirects to the actual image
+        return `https://source.unsplash.com/${id}/1200x800`
+      }
+    }
+  } catch (e) {
+    // ignore and return original
+  }
+  return url
+}
 
 interface LandingPageProps {
   onGetStarted: () => void
@@ -352,11 +377,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           {HERO_IMAGES.map((image, index) => (
             <div
               key={index}
-              className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000 ${
+              className={`absolute inset-0 transition-all duration-1000 ${
                 index === currentImageIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-110'
               }`}
-              style={{ backgroundImage: `url(${image})` }}
-            />
+            >
+              <Image
+                src={image}
+                alt={HERO_IMAGE_ALT}
+                fill
+                style={{ objectFit: 'cover' }}
+                priority={index === 0}
+              />
+            </div>
           ))}
           <div className="absolute inset-0 bg-gradient-to-r from-green-600/80 to-blue-500/80" />
         </div>
@@ -683,7 +715,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   "Extra flour, rice, sugar, etc."
                 ],
                 delay: "0.1s",
-                backgroundImage: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=400&q=80" // African woman with fresh produce
+                backgroundImage: "/images/food.avif"   
               },
               {
                 icon: "👕",
@@ -696,7 +728,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   "Baby supplies (bottles, wipes, etc.)"
                 ],
                 delay: "0.2s",
-                backgroundImage: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=400&q=80" // People organizing clothes for sharing
+                backgroundImage: "/images/items.avif"
               }
             ].map((category, index) => (
               <Card 
@@ -705,10 +737,15 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 style={{ animationDelay: category.delay }}
               >
                 {/* Background Image */}
-                <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-5 group-hover:opacity-10 transition-opacity duration-500"
-                  style={{ backgroundImage: `url(${category.backgroundImage})` }}
-                />
+                <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
+                  <Image
+                    src={normalizeImageUrl(category.backgroundImage)}
+                    alt={`${category.title} background`}
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    className="pointer-events-none"
+                  />
+                </div>
                 <div className="relative z-10">
               <CardHeader>
                     <div className="flex items-center gap-3 group-hover:scale-105 transition-transform duration-300">
@@ -754,21 +791,21 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               {
                 title: "Before: Ready to Throw Away",
                 description: "Instead of throwing away good items, take a moment to consider who might need them.",
-                image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=400&q=80",
+                image: "/images/ready.avif",
                 icon: "🗑️",
                 color: "red"
               },
               {
                 title: "Pack with Care",
                 description: "Clean and pack items with love, knowing they'll bring joy to someone else.",
-                image: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=400&q=80",
+                image: "/images/tigawaneD.png",
                 icon: "📦",
                 color: "yellow"
               },
               {
                 title: "Share the Blessing",
                 description: "Share on Tigawane and connect with neighbors who need what you have.",
-                image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=400&q=80",
+                image: "/images/bless1.webp",
                 icon: "🤝",
                 color: "green"
               }
@@ -779,14 +816,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 style={{ animationDelay: `${index * 0.2}s` }}
               >
                 {/* Background Image */}
-                <div 
-                  className="h-48 bg-cover bg-center relative"
-                  style={{ backgroundImage: `url(${step.image})` }}
-                >
+                <div className="h-48 relative">
+                  <Image
+                    src={normalizeImageUrl(step.image)}
+                    alt={step.title}
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    className="pointer-events-none"
+                  />
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-300" />
                   <div className="absolute top-4 right-4 text-3xl bg-white rounded-full p-2 group-hover:scale-110 transition-transform duration-300">
                     {step.icon}
-                </div>
+                  </div>
                 </div>
                 
                 <CardContent className="p-6">
