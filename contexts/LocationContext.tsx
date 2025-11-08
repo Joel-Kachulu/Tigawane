@@ -45,7 +45,11 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     try {
       const location = await getCurrentLocation();
       setUserLocation(location);
-      setSelectedLocation(location); // Set as default selected location
+      // Only set as selected if the user hasn't already chosen a manual location
+      setSelectedLocation(prev => {
+        if (prev && (prev.address || (prev.latitude && prev.longitude))) return prev
+        return location
+      }); // Set as default selected location when none exists
       console.log('📍 User location obtained:', location);
     } catch (error) {
       console.error('❌ Error getting user location:', error);
@@ -62,8 +66,37 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 
   // Try to get user location on mount
   useEffect(() => {
+    // On mount, prefer any manually persisted location (from LocationSelector)
+    try {
+      const stored = localStorage.getItem('tigawane_manual_location')
+      if (stored) {
+        const loc = JSON.parse(stored) as Location
+        // Basic validation
+        if (loc && (typeof loc.latitude === 'number' || typeof loc.address === 'string')) {
+          setSelectedLocation(loc)
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+      console.warn('Could not read persisted manual location', e)
+    }
+
+    // Attempt to get GPS location; it will not overwrite an existing manual selection
     getCurrentUserLocation();
   }, []);
+
+  // Persist selectedLocation whenever it changes (manual or programmatic)
+  useEffect(() => {
+    try {
+      if (selectedLocation) {
+        localStorage.setItem('tigawane_manual_location', JSON.stringify(selectedLocation))
+      } else {
+        localStorage.removeItem('tigawane_manual_location')
+      }
+    } catch (e) {
+      console.warn('Failed to persist selected location', e)
+    }
+  }, [selectedLocation]);
 
   const value: LocationContextType = {
     userLocation,

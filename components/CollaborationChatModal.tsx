@@ -57,7 +57,6 @@ export default function CollaborationChatModal({
   const [messages, setMessages] = useState<CollaborationMessage[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
   const [donationSummary, setDonationSummary] = useState<DonationSummary | null>(null)
-  const [collaborationMeta, setCollaborationMeta] = useState<any | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
@@ -68,9 +67,8 @@ export default function CollaborationChatModal({
       fetchMessages()
       fetchParticipants()
       fetchDonationSummary()
-      fetchCollaborationMeta()
 
-  // Subscribe to new messages
+      // Subscribe to new messages
       const subscription = supabase
         .channel(`collaboration_messages:${collaborationId}`)
         .on(
@@ -83,7 +81,7 @@ export default function CollaborationChatModal({
           },
           (payload) => {
             const newMsg = payload.new as CollaborationMessage
-            // Fetch sender name for the new message (subscription payload doesn't include joined profile)
+            // Fetch sender name for the new message
             fetchSenderName(newMsg.sender_id).then((senderName) => {
               setMessages((prev) => [...prev, { ...newMsg, sender_name: senderName }])
             })
@@ -115,46 +113,26 @@ export default function CollaborationChatModal({
   const fetchMessages = async () => {
     if (!collaborationId) return
 
-    // Fetch messages and include sender profile (single query to avoid N+1)
     const { data, error } = await supabase
       .from("collaboration_messages")
-      .select(`id, message, sender_id, created_at, sender:profiles(full_name)`)
+      .select("*")
       .eq("collaboration_id", collaborationId)
       .order("created_at", { ascending: true })
 
     if (error) {
       console.error("Error fetching messages:", error)
     } else {
-      const messagesWithNames = (data || []).map((msg: any) => ({
-        id: msg.id,
-        message: msg.message,
-        sender_id: msg.sender_id,
-        created_at: msg.created_at,
-        sender_name: msg.sender?.full_name || "Anonymous",
-      }))
+      // Get sender names for all messages
+      const messagesWithNames = await Promise.all(
+        (data || []).map(async (msg) => {
+          const senderName = await fetchSenderName(msg.sender_id)
+          return {
+            ...msg,
+            sender_name: senderName,
+          }
+        }),
+      )
       setMessages(messagesWithNames)
-    }
-  }
-
-  const fetchCollaborationMeta = async () => {
-    if (!collaborationId) return
-    try {
-      const { data, error } = await supabase
-        .from('collaborations')
-        .select('id, goal_amount, raised_amount, currency, deadline, organizer_id')
-        .eq('id', collaborationId)
-        .single()
-
-      if (error) {
-        // It's okay if table/fields don't exist yet; keep meta null
-        // console.warn('No collaboration meta or fetch error', error)
-        setCollaborationMeta(null)
-        return
-      }
-      setCollaborationMeta(data)
-    } catch (err) {
-      console.error('Error fetching collaboration meta:', err)
-      setCollaborationMeta(null)
     }
   }
 
@@ -336,7 +314,7 @@ export default function CollaborationChatModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent aria-describedby="collab-dialog-desc" className="max-w-4xl max-h-[95vh] h-[95vh] p-0 m-2 sm:m-6">
+      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] p-0 m-2 sm:m-6">
         <DialogHeader className="border-b pb-4 px-4 sm:px-6 pt-4 sm:pt-6 bg-white rounded-t-lg">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -345,34 +323,9 @@ export default function CollaborationChatModal({
               </div>
               <div className="flex-1 min-w-0">
                 <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 truncate">{collaborationTitle}</DialogTitle>
-                <DialogDescription id="collab-dialog-desc" className="text-xs sm:text-sm text-gray-600 mt-1">
+                <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-1">
                   Chat with participants and view collaboration items
                 </DialogDescription>
-                {/* Campaign header: goal and progress */}
-                {collaborationMeta && (
-                  <div className="mt-3 w-full">
-                    <div className="flex items-center justify-between text-sm text-gray-700 mb-1">
-                      <div className="font-medium">Goal: {collaborationMeta.currency ? `${collaborationMeta.currency} ` : ''}{collaborationMeta.goal_amount ?? '—'}</div>
-                      <div className="text-gray-500">Raised: {collaborationMeta.currency ? `${collaborationMeta.currency} ` : ''}{collaborationMeta.raised_amount ?? donationSummary?.total_count ?? 0}</div>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="h-2 bg-green-500"
-                        style={{ width: `${Math.min(100, collaborationMeta.goal_amount ? ((Number(collaborationMeta.raised_amount || 0) / Number(collaborationMeta.goal_amount)) * 100) : (donationSummary ? (Math.min(100, (donationSummary.total_count / 10) * 100)) : 0))}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        className="bg-yellow-400 hover:bg-yellow-500 text-black font-medium px-3 py-1 rounded-lg"
-                        onClick={() => router.push(`/collaborations/${collaborationId}/donate`)}
-                      >
-                        Donate
-                      </Button>
-                      <div className="text-xs text-gray-500">{collaborationMeta.deadline ? `Ends ${new Date(collaborationMeta.deadline).toLocaleDateString()}` : ''}</div>
-                    </div>
-                  </div>
-                )}
                 <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
                   <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 px-2 py-1">
                     <Users className="h-3 w-3 mr-1" />

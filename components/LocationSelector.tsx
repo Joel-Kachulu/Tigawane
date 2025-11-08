@@ -37,19 +37,26 @@ export default function LocationSelector({ showRadiusSelector = true, className 
     if (!customCity) return;
     setIsSettingCity(true);
     try {
-      const resp = await fetch(`https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(customCity)}&format=json&limit=1`);
-      const data = await resp.json();
-      if (data && data.length > 0) {
-        setSelectedLocation({
-          latitude: parseFloat(data[0].lat),
-          longitude: parseFloat(data[0].lon),
-          address: customCity
-        });
-      } else {
-        // fallback: set only city name, coordinates null
+      // Call our server-side geocode proxy to avoid CORS and rate-limit issues
+      const resp = await fetch(`/api/geocode?q=${encodeURIComponent(customCity)}&country=MW`);
+      if (!resp.ok) {
+        // If no result, fallback to setting the address with zeroed coords
         setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
+      } else {
+        const data = await resp.json();
+        // data expected: { latitude, longitude, display_name }
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          setSelectedLocation({
+            latitude: Number(data.latitude),
+            longitude: Number(data.longitude),
+            address: data.display_name || customCity,
+          });
+        } else {
+          setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
+        }
       }
-    } catch {
+    } catch (err) {
+      console.error('Geocode error:', err);
       setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
     }
     setCustomCity("");

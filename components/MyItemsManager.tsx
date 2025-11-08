@@ -281,10 +281,10 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
           {filteredItems.map((item) => (
             <Card 
               key={item.id} 
-              className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl relative"
+              className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl relative pb-6"
               onClick={() => handleEditItem(item)}
             >
-              <div className="flex h-28">
+              <div className="flex h-32">
                 {/* Image Section */}
                 <div className="relative w-36 h-28 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
                   {item.image_url && !failedImages.has(item.id) ? (
@@ -332,7 +332,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                 <div className="flex-1 p-4 pr-20 flex flex-col justify-between">
                   {/* Top Section */}
                   <div className="space-y-2">
-                    <h3 className="font-bold text-base text-gray-900 line-clamp-2 leading-tight group-hover:text-green-700 transition-colors">
+                    <h3 className="font-bold text-base text-gray-900 whitespace-normal break-words leading-tight group-hover:text-green-700 transition-colors">
                       {item.title}
                     </h3>
                     
@@ -361,10 +361,10 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                   
                   {/* Bottom Section */}
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-gray-600">
-                      <MapPin className="h-3 w-3 shrink-0 text-gray-500" />
-                      <span className="truncate font-medium">{item.pickup_location}</span>
-                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-600 flex-wrap">
+                        <MapPin className="h-3 w-3 shrink-0 text-gray-500" />
+                        <span className="font-medium break-words max-w-full">{item.pickup_location}</span>
+                      </div>
                     {item.expiry_date && (
                       <div className="flex items-center gap-1 text-xs text-amber-600">
                         <Clock className="h-3 w-3" />
@@ -452,7 +452,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
               <CardHeader className="p-3 pb-2">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 relative group">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-1 line-clamp-2 group-hover:line-clamp-none">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-1 whitespace-normal break-words">
                       {item.title}
                       {requestCounts[item.id] > 0 && (
                         <span className="ml-1 inline-flex items-center justify-center px-1 py-0.5 rounded-full text-xs font-semibold bg-yellow-200 text-yellow-800 animate-pulse">
@@ -472,7 +472,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                   </div>
                 </div>
                 <div className="relative group">
-                  <CardDescription className="line-clamp-2 text-xs leading-tight group-hover:line-clamp-none">
+                  <CardDescription className="text-xs leading-tight whitespace-normal break-words">
                     {item.description}
                   </CardDescription>
                   <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-1 whitespace-normal max-w-xs">
@@ -481,10 +481,10 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-3 pt-0">
-                <div className="flex items-center gap-1 text-xs text-gray-600 relative group">
+                <div className="flex items-center gap-1 text-xs text-gray-600 relative group flex-wrap">
                   <MapPin className="h-4 w-4 shrink-0" />
-                  <span className="truncate group-hover:overflow-visible">{item.pickup_location}</span>
-                  <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-nowrap">
+                  <span className="font-medium break-words max-w-full">{item.pickup_location}</span>
+                  <div className="absolute hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg z-10 mt-6 whitespace-normal max-w-xs">
                     {item.pickup_location}
                   </div>
                 </div>

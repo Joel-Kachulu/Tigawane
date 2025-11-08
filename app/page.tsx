@@ -14,7 +14,7 @@ import CollaborationCenter from "@/components/CollaborationCenter"
 import LocationSelector from "@/components/LocationSelector"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LogOut, Plus, Home, Users, User, Menu, ChevronDown } from "lucide-react"
+import { LogOut, Plus, Home, Users, User, Menu, ChevronDown, MapPin } from "lucide-react"
 import MyItemsManager from "@/components/MyItemsManager"
 import Link from "next/link"
 
@@ -51,6 +51,7 @@ function AppContent() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [myItemsRefreshTrigger, setMyItemsRefreshTrigger] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [showLocationOpen, setShowLocationOpen] = useState(false)
 
   useEffect(() => {
     // Simulate loading
@@ -526,13 +527,7 @@ function AppContent() {
                   <ItemList key={`food-${refreshTrigger}`} itemType="food" collaborationId={null} />
                 </div>
               </div>
-              {/* Floating LocationSelector */}
-              <div className="fixed bottom-6 right-6 z-50">
-                <div className="bg-gradient-to-br from-green-400 via-blue-400 to-yellow-300 rounded-2xl shadow-2xl border-4 border-white p-4 flex flex-col items-center min-w-[240px] animate-fade-in-up">
-                  <div className="mb-2 text-white font-bold text-lg drop-shadow">Location & Radius</div>
-                  <LocationSelector />
-                </div>
-              </div>
+              {/* Floating LocationSelector moved to a single responsive FAB below */}
             </div>
           </TabsContent>
 
@@ -546,12 +541,7 @@ function AppContent() {
                   <ItemList key={`items-${refreshTrigger}`} itemType="non-food" collaborationId={null} />
                 </div>
               </div>
-              {/* Floating LocationSelector */}
-              <div className="fixed bottom-6 right-6 z-50">
-                <div className="bg-white rounded-2xl shadow-xl border border-green-100/70 p-4 flex flex-col items-center min-w-[220px]">
-                  <LocationSelector />
-                </div>
-              </div>
+              {/* Floating LocationSelector moved to a single responsive FAB below */}
             </div>
           </TabsContent>
 
@@ -584,6 +574,38 @@ function AppContent() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Responsive Floating LocationSelector: FAB on phones, panel on larger screens */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* Mobile: FAB that toggles a compact panel */}
+        <div className="sm:hidden flex flex-col items-end">
+          <button
+            aria-label="Open location selector"
+            onClick={() => setShowLocationOpen((s) => !s)}
+            className="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-blue-500 shadow-xl border-4 border-white flex items-center justify-center text-white"
+          >
+            <MapPin className="h-6 w-6" />
+          </button>
+
+          {showLocationOpen && (
+            <div className="mt-3 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 min-w-[220px]">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold text-sm">Location & Radius</div>
+                <button onClick={() => setShowLocationOpen(false)} className="text-gray-500 text-sm">Close</button>
+              </div>
+              <LocationSelector />
+            </div>
+          )}
+        </div>
+
+        {/* Desktop / Tablet: always show floating panel */}
+        <div className="hidden sm:block">
+          <div className="bg-gradient-to-br from-green-400 via-blue-400 to-yellow-300 rounded-2xl shadow-2xl border-4 border-white p-4 flex flex-col items-center min-w-[240px]">
+            <div className="mb-2 text-white font-bold text-lg drop-shadow">Location & Radius</div>
+            <LocationSelector />
+          </div>
+        </div>
+      </div>
 
       {/* Footer with Navigation Shortcuts */}
       <footer className="bg-white border-t border-gray-200 mt-16">
