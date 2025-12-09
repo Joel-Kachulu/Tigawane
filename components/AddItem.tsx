@@ -264,29 +264,52 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         }
       }
 
-      // Geocode pickup_label to get coordinates
+      // Get coordinates: prefer selectedLocation (GPS) if available, otherwise geocode the address
       let pickup_lat: number | null = null;
       let pickup_lon: number | null = null;
-      try {
-        const geo = await geocodeAddress(formData.pickup_label.trim());
+      
+      // First, try to use selectedLocation if it has valid coordinates
+      if (selectedLocation && 
+          typeof selectedLocation.latitude === 'number' && 
+          typeof selectedLocation.longitude === 'number' &&
+          selectedLocation.latitude >= -90 && selectedLocation.latitude <= 90 &&
+          selectedLocation.longitude >= -180 && selectedLocation.longitude <= 180 &&
+          !(selectedLocation.latitude === 0 && selectedLocation.longitude === 0)) {
+        // Use GPS coordinates (more accurate)
+        pickup_lat = selectedLocation.latitude;
+        pickup_lon = selectedLocation.longitude;
+        console.log('📍 Using GPS coordinates:', { lat: pickup_lat, lon: pickup_lon });
+      } else {
+        // Fall back to geocoding the address
+        try {
+          const geo = await geocodeAddress(formData.pickup_label.trim());
 
-        // Coerce to numbers and validate (geocoder may return strings)
-        const latVal: any = (geo as any)?.latitude
-        const lonVal: any = (geo as any)?.longitude
+          // Coerce to numbers and validate (geocoder may return strings)
+          const latVal: any = (geo as any)?.latitude
+          const lonVal: any = (geo as any)?.longitude
 
-        const latNum = latVal == null ? null : Number(latVal)
-        const lonNum = lonVal == null ? null : Number(lonVal)
+          const latNum = latVal == null ? null : Number(latVal)
+          const lonNum = lonVal == null ? null : Number(lonVal)
 
-        if (latNum === null || lonNum === null || Number.isNaN(latNum) || Number.isNaN(lonNum)) {
-          throw new Error('Invalid coordinates')
+          if (latNum === null || lonNum === null || Number.isNaN(latNum) || Number.isNaN(lonNum)) {
+            throw new Error('Invalid coordinates from geocoding')
+          }
+
+          // Validate coordinate ranges
+          if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180 || 
+              (latNum === 0 && lonNum === 0)) {
+            throw new Error('Coordinates out of valid range')
+          }
+
+          pickup_lat = latNum
+          pickup_lon = lonNum
+          console.log('📍 Using geocoded coordinates:', { lat: pickup_lat, lon: pickup_lon });
+        } catch (geoError) {
+          console.error('Geocoding error:', geoError);
+          setError("Could not determine location coordinates. Please ensure location services are enabled or enter a more specific address.");
+          setLoading(false);
+          return;
         }
-
-        pickup_lat = latNum
-        pickup_lon = lonNum
-      } catch (geoError) {
-        setError("Could not find that location. Please enter a more specific address or landmark.");
-        setLoading(false);
-        return;
       }
 
       // Prepare item data with pickup location
@@ -641,6 +664,14 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
             </div>
 
             <div className="space-y-4">
+              {selectedLocation && selectedLocation.latitude && selectedLocation.longitude && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <MapPin className="h-4 w-4" />
+                    <span className="font-medium">Using your GPS location for accurate positioning</span>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label htmlFor="pickup_label" className="text-base font-medium">Pickup address/label *</Label>
                 <Input
@@ -651,6 +682,9 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                   className="mt-2 text-base h-12"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter a descriptive address or landmark. Your GPS coordinates will be used for distance calculations.
+                </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="flex items-center space-x-2">

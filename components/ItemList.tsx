@@ -143,7 +143,8 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         lat: selectedLocation.latitude,
         lon: selectedLocation.longitude,
         radius_km: radius,
-        limit_count: itemsPerPage
+        limit_count: itemsPerPage * 2, // Fetch more to account for filtering
+        item_type_filter: itemType
       });
       console.log('[RPC DEBUG] get_items_nearby result:', { data, error });
       if (error) {
@@ -158,7 +159,17 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         setHasMore(false);
         return;
       }
+      // Filter and validate items
       let filteredData = (data || [])
+        .filter(item => {
+          // Additional validation: ensure item has valid coordinates and distance
+          if (!item.pickup_lat || !item.pickup_lon) return false;
+          if (item.pickup_lat === 0 && item.pickup_lon === 0) return false;
+          if (item.distance_m === null || item.distance_m === undefined) return false;
+          // Ensure distance is within radius (in meters)
+          if (item.distance_m > radius * 1000) return false;
+          return true;
+        })
         .filter(item => item.item_type === itemType)
         .filter(item =>
           (!collaborationId && !item.collaboration_id) ||
@@ -414,10 +425,10 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                     </div>
                     
                     {/* Distance Badge - More prominent */}
-                    {item.distance_m !== undefined && (
+                    {item.distance_m !== undefined && item.distance_m !== null && item.distance_m >= 0 && (
                       <div className="absolute top-2 right-2">
                         <div className="bg-blue-600 text-white text-sm px-3 py-1 rounded-full font-bold shadow-lg border-2 border-white">
-                          {formatDistance((item.distance_m || 0) / 1000)}
+                          {formatDistance(item.distance_m / 1000)}
                         </div>
                       </div>
                     )}
@@ -580,9 +591,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                         </div>
                       )}
                       {/* Distance Badge - float on top of image */}
-                      {item.distance_m !== undefined && (
+                      {item.distance_m !== undefined && item.distance_m !== null && item.distance_m >= 0 && (
                         <span className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg border-2 border-white z-10">
-                          {formatDistance((item.distance_m || 0) / 1000)}
+                          {formatDistance(item.distance_m / 1000)}
                         </span>
                       )}
                     </div>
