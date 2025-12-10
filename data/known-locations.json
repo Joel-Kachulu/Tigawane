@@ -1,0 +1,122 @@
+{
+  "lilongwe": {
+    "lat": -13.962612,
+    "lon": 33.774119,
+    "name": "Lilongwe, Malawi"
+  },
+  "blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Blantyre, Malawi"
+  },
+  "mzuzu": {
+    "lat": -11.460752,
+    "lon": 34.022642,
+    "name": "Mzuzu, Malawi"
+  },
+  "zomba": {
+    "lat": -15.385574,
+    "lon": 35.318727,
+    "name": "Zomba, Malawi"
+  },
+  "college of medicine": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "College of Medicine, Blantyre, Malawi"
+  },
+  "college of medicine blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "College of Medicine, Blantyre, Malawi"
+  },
+  "com blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "College of Medicine, Blantyre, Malawi"
+  },
+  "com": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "College of Medicine, Blantyre, Malawi"
+  },
+  "chileka airport": {
+    "lat": -15.679167,
+    "lon": 34.973889,
+    "name": "Chileka Airport, Blantyre, Malawi"
+  },
+  "chileka airport blantyre": {
+    "lat": -15.679167,
+    "lon": 34.973889,
+    "name": "Chileka Airport, Blantyre, Malawi"
+  },
+  "kameza roundabout": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Kameza Roundabout, Blantyre, Malawi"
+  },
+  "kameza roundabout blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Kameza Roundabout, Blantyre, Malawi"
+  },
+  "chilimba market": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Chilimba Market, Blantyre, Malawi"
+  },
+  "chilimba market blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Chilimba Market, Blantyre, Malawi"
+  },
+  "chigumula": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Chigumula, Blantyre, Malawi"
+  },
+  "chigumula blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Chigumula, Blantyre, Malawi"
+  },
+  "biwi triangle": {
+    "lat": -13.962612,
+    "lon": 33.774119,
+    "name": "Biwi Triangle, Lilongwe, Malawi"
+  },
+  "biwi triangle lilongwe": {
+    "lat": -13.962612,
+    "lon": 33.774119,
+    "name": "Biwi Triangle, Lilongwe, Malawi"
+  },
+  "mchesi": {
+    "lat": -13.962612,
+    "lon": 33.774119,
+    "name": "Mchesi, Lilongwe, Malawi"
+  },
+  "mchesi lilongwe": {
+    "lat": -13.962612,
+    "lon": 33.774119,
+    "name": "Mchesi, Lilongwe, Malawi"
+  },
+  "naperi": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Naperi, Blantyre, Malawi"
+  },
+  "naperi blantyre": {
+    "lat": -15.786254,
+    "lon": 35.003569,
+    "name": "Naperi, Blantyre, Malawi"
+  },
+  "limbe market": {
+    "lat": -15.8170909,
+    "lon": 35.0538875,
+    "name": "Limbe Market, Limbe, Blantyre, Southern Region, Malawi"
+  },
+  "zalewa": {
+    "lat": -15.4452193,
+    "lon": 34.8618297,
+    "name": "Zalewa, Neno, Southern Region, Malawi"
+  }
+}
