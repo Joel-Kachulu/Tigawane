@@ -21,6 +21,79 @@ type KnownLocation = {
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 const cache = new Map<string, { expires: number; data: GeocodeResult }>();
 
+// Rate limiting: IP -> { count, resetTime }
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_MAX_REQUESTS = 10; // Max requests per window
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute window
+
+// Helper to get client IP from request
+function getClientIP(req: Request): string {
+  // Try various headers (for proxies, load balancers, etc.)
+  const forwarded = req.headers.get('x-forwarded-for');
+  const realIP = req.headers.get('x-real-ip');
+  const cfConnectingIP = req.headers.get('cf-connecting-ip');
+  
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (realIP) {
+    return realIP;
+  }
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+  
+  // Fallback to a default (in production, this should never happen)
+  return 'unknown';
+}
+
+// Check rate limit
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetTime: number } {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetTime) {
+    // Create new window
+    rateLimitMap.set(ip, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return {
+      allowed: true,
+      remaining: RATE_LIMIT_MAX_REQUESTS - 1,
+      resetTime: now + RATE_LIMIT_WINDOW_MS,
+    };
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetTime: record.resetTime,
+    };
+  }
+
+  // Increment count
+  record.count++;
+  rateLimitMap.set(ip, record);
+
+  return {
+    allowed: true,
+    remaining: RATE_LIMIT_MAX_REQUESTS - record.count,
+    resetTime: record.resetTime,
+  };
+}
+
+// Clean up old rate limit entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimitMap.entries()) {
+    if (now > record.resetTime) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000); // Clean up every 5 minutes
+
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org/search';
 
 // File path for known locations
@@ -107,12 +180,16 @@ async function loadKnownLocations(): Promise<Record<string, KnownLocation>> {
     const fileContent = await fs.readFile(KNOWN_LOCATIONS_FILE, 'utf-8');
     knownLocationsCache = JSON.parse(fileContent);
     knownLocationsCacheTime = now;
-    console.log(`📂 Loaded ${Object.keys(knownLocationsCache || {}).length} known locations from file`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📂 Loaded ${Object.keys(knownLocationsCache || {}).length} known locations from file`);
+    }
     return knownLocationsCache || {};
   } catch (error: any) {
     // File doesn't exist or can't be read - return empty object
     if (error.code === 'ENOENT') {
-      console.log('📂 Known locations file not found, creating new one...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📂 Known locations file not found, creating new one...');
+      }
       // Create directory if it doesn't exist
       try {
         await fs.mkdir(path.dirname(KNOWN_LOCATIONS_FILE), { recursive: true });
@@ -161,7 +238,9 @@ async function saveKnownLocation(query: string, location: KnownLocation): Promis
       await fs.writeFile(KNOWN_LOCATIONS_FILE, JSON.stringify(knownLocations, null, 2), 'utf-8');
       knownLocationsCache = knownLocations;
       knownLocationsCacheTime = Date.now();
-      console.log(`💾 Saved new location to file: ${normalized} -> ${location.name}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`💾 Saved new location to file: ${normalized} -> ${location.name}`);
+      }
     }
   } catch (error) {
     console.error('❌ Error saving known location:', error);
@@ -228,12 +307,46 @@ function findKnownLocation(query: string, knownLocations: Record<string, KnownLo
 
 export async function GET(req: Request) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(req);
+    const rateLimit = checkRateLimit(clientIP);
+    
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded',
+          message: `Too many requests. Please try again after ${Math.ceil((rateLimit.resetTime - Date.now()) / 1000)} seconds.`
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
+            'X-RateLimit-Remaining': String(rateLimit.remaining),
+            'X-RateLimit-Reset': String(rateLimit.resetTime),
+            'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)),
+          }
+        }
+      );
+    }
+
+    // Input validation
     const url = new URL(req.url);
     const q = url.searchParams.get('q')?.trim();
     const country = url.searchParams.get('country')?.trim(); // optional country code (e.g. MW)
 
+    // Validate query parameter
     if (!q) {
       return NextResponse.json({ error: 'Missing query parameter q' }, { status: 400 });
+    }
+
+    // Validate query length (prevent abuse)
+    if (q.length > 200) {
+      return NextResponse.json({ error: 'Query parameter too long (max 200 characters)' }, { status: 400 });
+    }
+
+    // Validate country code format if provided
+    if (country && !/^[A-Z]{2}$/i.test(country)) {
+      return NextResponse.json({ error: 'Invalid country code format (expected 2-letter code like MW)' }, { status: 400 });
     }
 
     // Check known locations from file first (fastest, no API call)
@@ -247,8 +360,16 @@ export async function GET(req: Request) {
         display_name: knownLocation.name,
         source: 'known_location_file',
       };
-      console.log(`✅ Using known location from file: ${q} -> ${knownLocation.name}`);
-      return NextResponse.json(result);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Using known location from file: ${q} -> ${knownLocation.name}`);
+      }
+      return NextResponse.json(result, {
+        headers: {
+          'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetTime),
+        }
+      });
     }
     
     // Use original query for cache key to avoid cache misses
@@ -256,8 +377,16 @@ export async function GET(req: Request) {
     const now = Date.now();
     const cached = cache.get(cacheKey);
     if (cached && cached.expires > now) {
-      console.log(`✅ Using cached result for: ${q}`);
-      return NextResponse.json(cached.data);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Using cached result for: ${q}`);
+      }
+      return NextResponse.json(cached.data, {
+        headers: {
+          'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetTime),
+        }
+      });
     }
 
     // Build multiple query variations for better results
@@ -300,7 +429,9 @@ export async function GET(req: Request) {
         // Use https module directly to bypass SSL issues in development
         let responseData: any;
         try {
-          console.log(`🌐 Attempting to geocode via API: ${searchQuery}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`🌐 Attempting to geocode via API: ${searchQuery}`);
+          }
           const response = await httpsRequest(nominatimUrl, {
             headers: {
               'User-Agent': userAgent,
@@ -316,7 +447,9 @@ export async function GET(req: Request) {
           }
           
           responseData = response.data;
-          console.log(`✅ API request successful, got ${Array.isArray(responseData) ? responseData.length : 0} results`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ API request successful, got ${Array.isArray(responseData) ? responseData.length : 0} results`);
+          }
         } catch (fetchError: any) {
           // If https request fails, log the error but continue to next variation
           console.warn(`⚠️ HTTPS request failed for "${searchQuery}":`, fetchError?.message || fetchError);
@@ -366,7 +499,9 @@ export async function GET(req: Request) {
           name: result.display_name,
         });
         
-        console.log(`✅ Geocoded successfully: ${q} -> ${result.display_name}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Geocoded successfully: ${q} -> ${result.display_name}`);
+        }
         return NextResponse.json(result);
       } catch (variationError: any) {
         lastError = variationError;
@@ -384,7 +519,9 @@ export async function GET(req: Request) {
         display_name: fallbackLocation.name,
         source: 'known_location_last_resort',
       };
-      console.log(`✅ Using known location as last resort for: ${q}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Using known location as last resort for: ${q}`);
+      }
       return NextResponse.json(result);
     }
 

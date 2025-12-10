@@ -2,11 +2,18 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from "@/contexts/AuthContext"
 import { LocationProvider } from "@/contexts/LocationContext"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 export const metadata: Metadata = {
-  title: 'tigawane',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Tigawane - Share Food & Items in Your Community',
+  description: 'Connect with your community to share food, clothes, and household items. Reduce waste and help those in need.',
+  keywords: ['food sharing', 'community sharing', 'reduce waste', 'Malawi', 'donation'],
+  authors: [{ name: 'Tigawane' }],
+  openGraph: {
+    title: 'Tigawane - Share Food & Items in Your Community',
+    description: 'Connect with your community to share food, clothes, and household items.',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({
@@ -17,11 +24,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <LocationProvider>
-            {children}
-          </LocationProvider>
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <LocationProvider>
+              {children}
+            </LocationProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )
