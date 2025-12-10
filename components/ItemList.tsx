@@ -1,17 +1,19 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useLocation } from "@/contexts/LocationContext"
 import { formatDistance } from "@/lib/locationService"
+import { fetchProfiles, invalidateCache } from "@/lib/dataFetching"
+import { itemsCache, generateCacheKey, CACHE_TTL } from "@/lib/cache"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2, Image as ImageIcon, AlertCircle } from "lucide-react"
+import { CalendarDays, MapPin, Package, Search, Filter, Plus, Eye, Edit, Trash2, Image as ImageIcon, AlertCircle } from "lucide-react";
 import ClaimFoodModal from "./ClaimFoodModal"
 import EditItemModal from "./EditItemModal"
 import ImageWithFallback from "./ImageWithFallback"
@@ -65,7 +67,8 @@ const getExpiryUrgency = (expiryDate: string) => {
   }
 };
 
-export default function ItemList({ itemType, collaborationId }: ItemListProps) {
+// Memoize expensive calculations
+const ItemList = React.memo(function ItemList({ itemType, collaborationId }: ItemListProps) {
   const { user } = useAuth()
   const { selectedLocation, locationRadius } = useLocation()
   const [items, setItems] = useState<ItemRecord[]>([])
@@ -94,80 +97,257 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
     return category.charAt(0).toUpperCase() + category.slice(1);
   };
 
-  useEffect(() => {
-    fetchItems(true)
-  }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter, selectedLocation, locationRadius])
+  // Refs to prevent concurrent fetches and track debouncing
+  const isFetchingRef = useRef(false);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchParamsRef = useRef<string>('');
 
-  // Auto-refresh items when tab becomes visible again
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchItems(true);
+  // Memoize fetchItems to prevent infinite loops
+  const fetchItems = useCallback(async (reset = false) => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      console.log('⏸️ Fetch already in progress, skipping...');
+      return;
+    }
+
+    // Create a unique key for this fetch to detect duplicate calls
+    const fetchKey = `${itemType}-${collaborationId || 'none'}-${searchTerm}-${categoryFilter}-${statusFilter}-${selectedLocation?.latitude}-${selectedLocation?.longitude}-${locationRadius}`;
+    
+    // Skip if this exact fetch was just called
+    if (fetchKey === lastFetchParamsRef.current && !reset) {
+      console.log('⏸️ Duplicate fetch request, skipping...');
+      return;
+    }
+    
+    // Check cache first (only for non-reset fetches)
+    if (!reset && selectedLocation) {
+      const cacheKey = generateCacheKey('items', {
+        itemType,
+        collaborationId: collaborationId || 'none',
+        searchTerm,
+        categoryFilter,
+        statusFilter,
+        lat: selectedLocation.latitude,
+        lon: selectedLocation.longitude,
+        radius: locationRadius || 10,
+      });
+      
+      const cached = itemsCache.get<ItemRecord[]>(cacheKey);
+      if (cached) {
+        console.log('✅ Using cached items');
+        setItems(cached);
+        setLoading(false);
+        isFetchingRef.current = false;
+        // Still fetch profiles for cached items
+        const userIds = [...new Set(cached.map(item => item.user_id))] as string[];
+        if (userIds.length > 0) {
+          const profilesData = await fetchProfiles(userIds);
+          setProfiles(profilesData);
+        }
+        return;
       }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter, selectedLocation, locationRadius]);
-
-  const fetchItems = async (reset = false) => {
-  setLoading(true);
+    }
+    
+    lastFetchParamsRef.current = fetchKey;
+    isFetchingRef.current = true;
+    setLoading(true);
   try {
       // Validate location parameters before making the RPC call
       if (!selectedLocation || typeof selectedLocation.latitude !== 'number' || typeof selectedLocation.longitude !== 'number') {
+        console.warn('⚠️ Location not set - items require location to be displayed');
         setItems([]);
         setLoading(false);
+        isFetchingRef.current = false;
         return;
       }
+      
       const pageToFetch = reset ? 0 : currentPage;
       const radius = locationRadius || 10;
-      // Defensive: log parameters before RPC
-      if (isNaN(selectedLocation.latitude) || isNaN(selectedLocation.longitude) || isNaN(radius)) {
-        console.error('❌ Invalid location or radius for get_items_nearby:', {
-          latitude: selectedLocation.latitude,
-          longitude: selectedLocation.longitude,
-          radius
+      
+      // Validate coordinates are not 0,0 (null island) and are within valid ranges
+      const lat = selectedLocation.latitude;
+      const lon = selectedLocation.longitude;
+      
+      if (isNaN(lat) || isNaN(lon) || isNaN(radius) ||
+          lat === 0 && lon === 0 ||
+          lat < -90 || lat > 90 || 
+          lon < -180 || lon > 180) {
+        console.error('❌ Invalid location coordinates:', {
+          latitude: lat,
+          longitude: lon,
+          radius,
+          issue: lat === 0 && lon === 0 ? 'Null island (0,0)' : 'Out of range'
         });
         setItems([]);
         setLoading(false);
+        isFetchingRef.current = false;
         return;
       }
       console.log('[RPC DEBUG] Calling get_items_nearby with:', {
         lat: selectedLocation.latitude,
         lon: selectedLocation.longitude,
         radius_km: radius,
-        limit_count: itemsPerPage
-      });
-      const { data, error } = await supabase.rpc("get_items_nearby", {
-        lat: selectedLocation.latitude,
-        lon: selectedLocation.longitude,
-        radius_km: radius,
-        limit_count: itemsPerPage * 2, // Fetch more to account for filtering
+        limit_count: itemsPerPage * 2,
         item_type_filter: itemType
       });
-      console.log('[RPC DEBUG] get_items_nearby result:', { data, error });
-      if (error) {
-        // Log full error details for debugging
-        console.error(`❌ Error fetching ${itemType} items (Supabase RPC):`, error, {
+      // Try RPC first, but fallback to direct query if it fails
+      let data: ItemRecord[] | null = null;
+      let useFallback = false;
+      
+      try {
+        const result = await supabase.rpc("get_items_nearby", {
           lat: selectedLocation.latitude,
           lon: selectedLocation.longitude,
           radius_km: radius,
-          limit_count: itemsPerPage
+          limit_count: itemsPerPage * 2,
+          item_type_filter: itemType
         });
+        
+        if (result.error) {
+          // Check if function doesn't exist or has wrong signature
+          const errorCode = result.error.code;
+          const errorMessage = result.error.message || '';
+          const isFunctionError = errorCode === '42883' || 
+                                  errorCode === 'P0001' || 
+                                  errorMessage.includes('function') ||
+                                  errorMessage.includes('does not exist');
+          
+          if (isFunctionError) {
+            console.warn('⚠️ RPC function get_items_nearby not available. Using fallback method.');
+            useFallback = true;
+          } else {
+            console.warn('⚠️ RPC call failed:', result.error.message || result.error);
+            useFallback = true;
+          }
+        } else if (result.data) {
+          // RPC succeeded
+          data = result.data as ItemRecord[];
+          console.log(`✅ RPC query successful: ${data.length} items found`);
+        } else {
+          // No data but no error - might be empty result
+          data = [];
+        }
+      } catch (rpcError: any) {
+        // Catch any unexpected errors from the RPC call
+        console.warn('⚠️ RPC call threw exception, using fallback:', rpcError?.message || rpcError);
+        useFallback = true;
+      }
+      
+      // Use fallback if RPC failed or function doesn't exist
+      if (useFallback || !data) {
+        console.log('🔄 Using fallback: direct query with manual distance calculation...');
+        try {
+          // Optimize query: only select needed fields instead of *
+          const fallbackResult = await supabase
+            .from("items")
+            .select("id, title, description, category, item_type, quantity, condition, expiry_date, pickup_location, image_url, user_id, status, created_at, collaboration_id, pickup_lat, pickup_lon, pickup_label")
+            .eq("item_type", itemType)
+            .in("status", ["available", "requested"])
+            .not("pickup_lat", "is", null)
+            .not("pickup_lon", "is", null)
+            .neq("pickup_lat", 0) // Exclude null island (0,0)
+            .neq("pickup_lon", 0) // Exclude null island (0,0)
+            .limit(itemsPerPage * 10); // Fetch more for filtering
+          
+          console.log(`[FALLBACK] Fetched ${fallbackResult.data?.length || 0} items from database`);
+          
+          if (fallbackResult.error) {
+            console.error('❌ Fallback query failed:', fallbackResult.error);
+            setItems([]);
+            setHasMore(false);
+            setLoading(false);
+            return;
+          }
+          
+          // Calculate distances manually for fallback results
+          const locationService = await import('@/lib/locationService');
+          const itemsWithDistance: ItemRecord[] = (fallbackResult.data || [])
+            .map(item => {
+              if (!item.pickup_lat || !item.pickup_lon) {
+                console.warn(`[FALLBACK] Item ${item.id} missing coordinates`);
+                return null;
+              }
+              
+              // Validate coordinates
+              const lat = Number(item.pickup_lat);
+              const lon = Number(item.pickup_lon);
+              if (isNaN(lat) || isNaN(lon) || lat === 0 && lon === 0) {
+                console.warn(`[FALLBACK] Item ${item.id} has invalid coordinates: ${lat}, ${lon}`);
+                return null;
+              }
+              
+              // Additional validation: check coordinate ranges
+              if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                console.warn(`[FALLBACK] Item ${item.id} has out-of-range coordinates: ${lat}, ${lon}`);
+                return null;
+              }
+              
+              const distanceKm = locationService.calculateDistance(
+                selectedLocation.latitude,
+                selectedLocation.longitude,
+                lat,
+                lon
+              );
+              
+              const distanceM = distanceKm * 1000; // Convert to meters
+              
+              return {
+                ...item,
+                distance_m: distanceM
+              } as ItemRecord;
+            })
+            .filter((item): item is ItemRecord => {
+              if (!item) return false;
+              // Filter by radius (in meters)
+              const withinRadius = (item.distance_m || 0) <= (radius * 1000);
+              if (!withinRadius) {
+                console.log(`[FALLBACK] Item ${item.id} outside radius: ${(item.distance_m || 0) / 1000}km > ${radius}km`);
+              }
+              return withinRadius;
+            })
+            .sort((a, b) => (a.distance_m || 0) - (b.distance_m || 0))
+            .slice(0, itemsPerPage * 2); // Limit results
+          
+          console.log(`✅ Fallback query successful: ${itemsWithDistance.length} items found within ${radius}km of (${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)})`);
+          data = itemsWithDistance;
+        } catch (fallbackError: any) {
+          console.error('❌ Fallback query failed:', fallbackError);
+          setItems([]);
+          setHasMore(false);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      if (!data) {
+        // If we still don't have data, give up
         setItems([]);
         setHasMore(false);
+        setLoading(false);
+        isFetchingRef.current = false;
         return;
       }
       // Filter and validate items
       let filteredData = (data || [])
         .filter(item => {
           // Additional validation: ensure item has valid coordinates and distance
-          if (!item.pickup_lat || !item.pickup_lon) return false;
-          if (item.pickup_lat === 0 && item.pickup_lon === 0) return false;
-          if (item.distance_m === null || item.distance_m === undefined) return false;
-          // Ensure distance is within radius (in meters)
-          if (item.distance_m > radius * 1000) return false;
+          if (!item.pickup_lat || !item.pickup_lon) {
+            console.warn('⚠️ Item missing coordinates:', item.id, item.title);
+            return false;
+          }
+          if (item.pickup_lat === 0 && item.pickup_lon === 0) {
+            console.warn('⚠️ Item has null island coordinates (0,0):', item.id, item.title);
+            return false;
+          }
+          if (item.distance_m === null || item.distance_m === undefined) {
+            console.warn('⚠️ Item missing distance:', item.id, item.title);
+            return false;
+          }
+          // Ensure distance is within radius (in meters) - but allow a small buffer for rounding
+          if (item.distance_m > (radius * 1000) + 100) { // 100m buffer for rounding
+            console.log('📍 Item outside radius:', item.title, `${(item.distance_m / 1000).toFixed(2)}km > ${radius}km`);
+            return false;
+          }
           return true;
         })
         .filter(item => item.item_type === itemType)
@@ -197,10 +377,27 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         setItems(prev => [...prev, ...filteredData]);
       }
       setHasMore(filteredData.length === itemsPerPage);
-      // Fetch user profiles for items
+      
+      // Cache the results
+      if (selectedLocation) {
+        const cacheKey = generateCacheKey('items', {
+          itemType,
+          collaborationId: collaborationId || 'none',
+          searchTerm,
+          categoryFilter,
+          statusFilter,
+          lat: selectedLocation.latitude,
+          lon: selectedLocation.longitude,
+          radius: locationRadius || 10,
+        });
+        itemsCache.set(cacheKey, filteredData, CACHE_TTL.ITEMS);
+      }
+      
+      // Fetch user profiles for items using optimized caching
       if (filteredData && filteredData.length > 0) {
         const userIds = [...new Set(filteredData.map(item => item.user_id))] as string[];
-        await fetchProfiles(userIds);
+        const profilesData = await fetchProfiles(userIds);
+        setProfiles(profilesData);
         if (user) {
           await fetchRequestCounts(filteredData.filter(item => item.user_id === user.id));
         }
@@ -216,31 +413,232 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       setHasMore(false);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter, selectedLocation?.latitude, selectedLocation?.longitude, locationRadius, user]);
 
-  const fetchProfiles = async (userIds: string[]) => {
-    try {
-      console.log(`👥 Fetching profiles for ${userIds.length} users...`)
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, location")
-        .in("id", userIds)
-
-      if (error) throw error
-
-      const profilesMap = (data || []).reduce((acc, profile) => {
-        acc[profile.id] = profile
-        return acc
-      }, {} as Record<string, any>)
-
-      setProfiles(prev => ({ ...prev, ...profilesMap }))
-      console.log(`✅ Successfully fetched ${data?.length || 0} profiles`)
-    } catch (error) {
-      console.error("❌ Error fetching profiles:", error)
+  // Debounced effect to fetch items when dependencies change
+  useEffect(() => {
+    // Clear any pending fetch
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
     }
-  }
+
+    // Debounce the fetch to prevent rapid successive calls
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchItems(true);
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, [itemType, collaborationId, searchTerm, categoryFilter, statusFilter, selectedLocation?.latitude, selectedLocation?.longitude, locationRadius, fetchItems]);
+
+  // Auto-refresh items when tab becomes visible again
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !isFetchingRef.current) {
+        fetchItems(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchItems]);
+
+  // Real-time subscription for new items
+  useEffect(() => {
+    if (!selectedLocation || !selectedLocation.latitude || !selectedLocation.longitude) {
+      return;
+    }
+
+    // Create unique channel name
+    const channelName = `items:${itemType}:${Date.now()}`;
+    
+    console.log(`📡 Setting up real-time subscription for ${itemType} items:`, channelName);
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'items',
+          filter: `item_type=eq.${itemType}`,
+        },
+        async (payload) => {
+          const newItem = payload.new as ItemRecord;
+          console.log('🆕 New item received via real-time:', newItem.id, newItem.title);
+
+          // Check if item matches current filters and location
+          if (newItem.status !== 'available' && newItem.status !== 'requested') {
+            return; // Skip if not available/requested
+          }
+
+          // Check collaboration filter
+          if (collaborationId && newItem.collaboration_id !== collaborationId) {
+            return; // Skip if collaboration doesn't match
+          }
+          if (!collaborationId && newItem.collaboration_id) {
+            return; // Skip if item has collaboration but we're not filtering by one
+          }
+
+          // Check if item has valid coordinates
+          if (!newItem.pickup_lat || !newItem.pickup_lon || 
+              newItem.pickup_lat === 0 && newItem.pickup_lon === 0) {
+            return; // Skip items without valid coordinates
+          }
+
+          // Calculate distance to user's location
+          try {
+            const locationService = await import('@/lib/locationService');
+            const distanceKm = locationService.calculateDistance(
+              selectedLocation.latitude,
+              selectedLocation.longitude,
+              Number(newItem.pickup_lat),
+              Number(newItem.pickup_lon)
+            );
+            const distanceM = distanceKm * 1000;
+            const radius = locationRadius || 10;
+
+            // Only add if within radius
+            if (distanceM > (radius * 1000)) {
+              console.log(`📍 New item outside radius: ${distanceKm.toFixed(2)}km > ${radius}km`);
+              return;
+            }
+
+            // Check search term filter
+            if (searchTerm) {
+              const term = searchTerm.toLowerCase();
+              const matchesSearch = 
+                (newItem.title && newItem.title.toLowerCase().includes(term)) ||
+                (newItem.description && newItem.description.toLowerCase().includes(term));
+              if (!matchesSearch) {
+                return;
+              }
+            }
+
+            // Check category filter
+            if (categoryFilter !== 'all' && newItem.category !== categoryFilter) {
+              return;
+            }
+
+            // Check status filter
+            if (statusFilter !== 'all' && newItem.status !== statusFilter) {
+              return;
+            }
+
+            // Add distance to item
+            const itemWithDistance: ItemRecord = {
+              ...newItem,
+              distance_m: distanceM,
+            };
+
+            // Add item to the list (at the beginning since it's sorted by distance)
+            setItems((prev) => {
+              // Check if item already exists (prevent duplicates)
+              if (prev.some(item => item.id === newItem.id)) {
+                return prev;
+              }
+              
+              // Insert new item in correct position (sorted by distance)
+              const newList = [...prev, itemWithDistance];
+              newList.sort((a, b) => (a.distance_m || 0) - (b.distance_m || 0));
+              return newList;
+            });
+
+            // Fetch profile for the new item using optimized caching
+            if (newItem.user_id) {
+              const newProfiles = await fetchProfiles([newItem.user_id]);
+              setProfiles(prev => ({ ...prev, ...newProfiles }));
+            }
+
+            console.log('✅ New item added to list:', newItem.title);
+          } catch (error) {
+            console.error('❌ Error processing new item:', error);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'items',
+          filter: `item_type=eq.${itemType}`,
+        },
+        async (payload) => {
+          const updatedItem = payload.new as ItemRecord;
+          console.log('📝 Item updated via real-time:', updatedItem.id);
+
+          // Update item in the list if it exists
+          setItems((prev) => {
+            const itemIndex = prev.findIndex(item => item.id === updatedItem.id);
+            if (itemIndex === -1) {
+              // Item not in list, might need to be added (if it now matches filters)
+              // For simplicity, just refresh the list
+              if (!isFetchingRef.current) {
+                setTimeout(() => fetchItems(true), 500);
+              }
+              return prev;
+            }
+
+            // Check if item should still be in the list based on filters
+            const shouldKeep = 
+              (updatedItem.status === 'available' || updatedItem.status === 'requested') &&
+              (!searchTerm || 
+                (updatedItem.title && updatedItem.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (updatedItem.description && updatedItem.description.toLowerCase().includes(searchTerm.toLowerCase()))) &&
+              (categoryFilter === 'all' || updatedItem.category === categoryFilter) &&
+              (statusFilter === 'all' || updatedItem.status === statusFilter);
+
+            if (!shouldKeep) {
+              // Remove item if it no longer matches filters
+              return prev.filter(item => item.id !== updatedItem.id);
+            }
+
+            // Update the item
+            const newList = [...prev];
+            newList[itemIndex] = {
+              ...updatedItem,
+              distance_m: prev[itemIndex].distance_m, // Preserve distance
+            };
+            return newList;
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'items',
+          filter: `item_type=eq.${itemType}`,
+        },
+        (payload) => {
+          const deletedItemId = payload.old.id;
+          console.log('🗑️ Item deleted via real-time:', deletedItemId);
+
+          // Invalidate cache when item is deleted
+          invalidateCache('items');
+          setItems((prev) => prev.filter(item => item.id !== deletedItemId));
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 Items subscription status:`, status);
+      });
+
+    return () => {
+      console.log('🧹 Cleaning up items subscription:', channelName);
+      channel.unsubscribe();
+    };
+  }, [itemType, collaborationId, selectedLocation?.latitude, selectedLocation?.longitude, locationRadius, searchTerm, categoryFilter, statusFilter, fetchItems]);
+
+  // fetchProfiles is now imported from @/lib/dataFetching for optimized caching
 
   const fetchRequestCounts = async (ownerItems: ItemRecord[]) => {
     try {
@@ -364,7 +762,23 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
       </div>
 
       {/* Items Grid */}
-      {filteredItems.length === 0 ? (
+      {!selectedLocation || typeof selectedLocation.latitude !== 'number' || typeof selectedLocation.longitude !== 'number' ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <MapPin className="h-12 w-12 mx-auto mb-4 text-orange-400" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Location Required
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Please set your location using the Location Selector to see nearby {itemType} items. 
+              Items are filtered by distance from your location.
+            </p>
+            <p className="text-sm text-gray-500">
+              Click the location button in the top right to set your location.
+            </p>
+          </CardContent>
+        </Card>
+      ) : filteredItems.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -378,11 +792,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                 ? null
                 : collaborationId
                   ? "No items have been shared with this collaboration yet. Be the first to share something with your group!"
-                  : (
-                    selectedLocation && selectedLocation.latitude && selectedLocation.longitude
-                      ? `Looks like there are no ${itemType} items nearby. Be the first to share in your area!`
-                      : `No ${itemType} items found. Why not be the first to share?`
-                  )
+                  : `Looks like there are no ${itemType} items nearby. Be the first to share in your area!`
               }
             </p>
           </CardContent>
@@ -391,9 +801,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         <>
           {/* Mobile: Vertical Feed Layout */}
           <div className="lg:hidden flex flex-col gap-4 px-1">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               // Precompute urgency to avoid IIFE in JSX
               const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
+              // Priority loading for first 3 items (above the fold)
+              const isPriority = index < 3;
               
               return (
               <Card key={item.id} className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200 hover:border-green-300 bg-white rounded-2xl relative">
@@ -401,11 +813,14 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                   {/* Image Section - Enhanced size for mobile */}
                   <div className="relative w-32 min-h-36 flex-shrink-0 overflow-hidden rounded-l-2xl bg-gradient-to-br from-gray-50 to-gray-100">
                     {item.image_url ? (
-                      // centralized image component with fallback
+                      // centralized image component with fallback - optimized loading
                       <ImageWithFallback
                         src={item.image_url}
                         alt={item.title}
                         className="object-cover object-center w-full h-full rounded-xl group-hover:scale-105 transition-transform duration-300"
+                        priority={isPriority} // Priority for first 3 items
+                        width={128}
+                        height={144}
                       />
                     ) : (
                       <div className="flex items-center justify-center w-full h-full text-gray-400 bg-gray-100 rounded-xl">
@@ -447,11 +862,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                         </p>
                       )}
                       <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
+                        <Badge variant={"secondary" as const} className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
                           {formatCategoryName(item.category)}
                         </Badge>
                         <Badge 
-                          variant={item.status === 'available' ? 'default' : 'secondary'}
+                          variant={(item.status === 'available' ? 'default' : 'secondary') as "default" | "secondary" | "destructive" | "outline"}
                           className={`text-xs font-medium ${
                             item.status === 'available' ? 'bg-green-500 text-white' :
                             item.status === 'requested' ? 'bg-amber-100 text-amber-800' :
@@ -542,7 +957,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                             e.stopPropagation();
                             setEditingItem(item);
                           }}
-                          variant="outline"
+                          variant={"outline" as const}
                           className="bg-white hover:bg-gray-50 border-gray-300 hover:border-green-500 text-gray-700 hover:text-green-700 font-medium py-2 px-3 rounded-full shadow-lg hover:scale-105 transition-all duration-200"
                         >
                           <Edit className="h-4 w-4" />
@@ -555,7 +970,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                               handleDeleteItem(item.id)
                             }
                           }}
-                          variant="outline"
+                          variant={"outline" as const}
                           className="bg-white hover:bg-red-50 border-gray-300 hover:border-red-500 text-gray-700 hover:text-red-700 font-medium py-2 px-3 rounded-full shadow-lg hover:scale-105 transition-all duration-200"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -571,9 +986,11 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
 
           {/* Desktop: Grid Layout */}
           <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               // Precompute urgency to avoid IIFE in JSX
               const urgency = item.expiry_date ? getExpiryUrgency(item.expiry_date) : null;
+              // Priority loading for first 8 items (first 2 rows in grid)
+              const isPriority = index < 8;
               return (
                 <div key={item.id} className="group bg-gradient-to-br from-white via-blue-50 to-green-50 border border-blue-200 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col min-h-[420px] max-h-[440px] relative overflow-hidden">
                   <div className="flex flex-col h-full">
@@ -584,6 +1001,9 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           alt={item.title}
                           className="object-contain w-full h-full rounded-t-2xl"
                           style={{ maxHeight: '160px' }}
+                          priority={isPriority} // Priority for first 8 items
+                          width={400}
+                          height={160}
                         />
                       ) : (
                         <div className="flex items-center justify-center w-full h-full text-gray-300">
@@ -679,7 +1099,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                           <>
                             <Button 
                               onClick={() => setEditingItem(item)}
-                              variant="outline"
+                              variant={"outline" as const}
                               className="bg-white hover:bg-gray-50 border-gray-300 hover:border-green-500 text-gray-700 hover:text-green-700 font-medium py-2 px-3 rounded-full shadow hover:scale-105 transition-all duration-200"
                             >
                               <Edit className="h-4 w-4 mr-1" />
@@ -691,7 +1111,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
                                   handleDeleteItem(item.id)
                                 }
                               }}
-                              variant="outline"
+                              variant={"outline" as const}
                               className="bg-white hover:bg-red-50 border-gray-300 hover:border-red-500 text-gray-700 hover:text-red-700 font-medium py-2 px-3 rounded-full shadow hover:scale-105 transition-all duration-200"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -750,5 +1170,7 @@ export default function ItemList({ itemType, collaborationId }: ItemListProps) {
         />
       )}
     </div>
-  )
-}
+  );
+});
+
+export default ItemList;

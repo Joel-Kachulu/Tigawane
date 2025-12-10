@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { getCurrentLocation, Location } from '@/lib/locationService';
 
 interface LocationContextType {
@@ -71,9 +71,22 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       const stored = localStorage.getItem('tigawane_manual_location')
       if (stored) {
         const loc = JSON.parse(stored) as Location
-        // Basic validation
-        if (loc && (typeof loc.latitude === 'number' || typeof loc.address === 'string')) {
-          setSelectedLocation(loc)
+        // Validate location has valid coordinates (not 0,0)
+        if (loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+          const lat = loc.latitude;
+          const lon = loc.longitude;
+          // Check for valid coordinates (not null island and within valid ranges)
+          if (!(lat === 0 && lon === 0) &&
+              lat >= -90 && lat <= 90 &&
+              lon >= -180 && lon <= 180) {
+            setSelectedLocation(loc)
+            console.log('📍 Using persisted location from localStorage:', loc)
+            // Don't try GPS if we have a valid persisted location
+            return
+          } else {
+            console.warn('⚠️ Persisted location has invalid coordinates, clearing:', { lat, lon })
+            localStorage.removeItem('tigawane_manual_location')
+          }
         }
       }
     } catch (e) {
@@ -82,16 +95,47 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     }
 
     // Attempt to get GPS location; it will not overwrite an existing manual selection
-    getCurrentUserLocation();
+    // Use a small delay to avoid blocking the UI
+    const timer = setTimeout(() => {
+      getCurrentUserLocation();
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Persist selectedLocation whenever it changes (manual or programmatic)
+  // Use ref to track last persisted location to avoid unnecessary writes
+  const lastPersistedLocationRef = useRef<string>('');
+  
   useEffect(() => {
     try {
       if (selectedLocation) {
-        localStorage.setItem('tigawane_manual_location', JSON.stringify(selectedLocation))
+        // Don't persist invalid coordinates (0,0 or out of range)
+        const lat = selectedLocation.latitude;
+        const lon = selectedLocation.longitude;
+        if (typeof lat === 'number' && typeof lon === 'number' &&
+            !(lat === 0 && lon === 0) &&
+            lat >= -90 && lat <= 90 &&
+            lon >= -180 && lon <= 180) {
+          const locationKey = `${lat.toFixed(6)}-${lon.toFixed(6)}-${selectedLocation.label || ''}`;
+          // Only persist if location actually changed
+          if (locationKey !== lastPersistedLocationRef.current) {
+            localStorage.setItem('tigawane_manual_location', JSON.stringify(selectedLocation))
+            lastPersistedLocationRef.current = locationKey;
+          }
+        } else {
+          // Remove invalid location from storage
+          if (lastPersistedLocationRef.current !== '') {
+            localStorage.removeItem('tigawane_manual_location')
+            lastPersistedLocationRef.current = '';
+          }
+          console.warn('⚠️ Not persisting invalid location coordinates:', { lat, lon })
+        }
       } else {
-        localStorage.removeItem('tigawane_manual_location')
+        if (lastPersistedLocationRef.current !== '') {
+          localStorage.removeItem('tigawane_manual_location')
+          lastPersistedLocationRef.current = '';
+        }
       }
     } catch (e) {
       console.warn('Failed to persist selected location', e)

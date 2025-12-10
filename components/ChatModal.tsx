@@ -78,8 +78,10 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
 
     fetchMessages()
 
+    // Create unique channel name to prevent conflicts
+    const channelName = `realtime:messages:${claimId}:${Date.now()}`
     const channel = supabase
-      .channel('realtime:messages')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -114,6 +116,7 @@ export default function ChatModal({ claimId, isOpen, onClose, otherUserName }: C
       .subscribe()
 
     return () => {
+      console.log('🧹 Cleaning up chat subscription:', channelName)
       channel.unsubscribe()
     }
   }, [claimId, isOpen, fetchMessages, scrollToBottom])

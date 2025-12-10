@@ -264,53 +264,115 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
         }
       }
 
-      // Get coordinates: prefer selectedLocation (GPS) if available, otherwise geocode the address
+      // Step 1: Try to geocode the pickup address entered by the user
+      // Step 2: If geocoding fails, fall back to user's current GPS location
       let pickup_lat: number | null = null;
       let pickup_lon: number | null = null;
+      let usedGeocoding = false;
       
-      // First, try to use selectedLocation if it has valid coordinates
-      if (selectedLocation && 
-          typeof selectedLocation.latitude === 'number' && 
-          typeof selectedLocation.longitude === 'number' &&
-          selectedLocation.latitude >= -90 && selectedLocation.latitude <= 90 &&
-          selectedLocation.longitude >= -180 && selectedLocation.longitude <= 180 &&
-          !(selectedLocation.latitude === 0 && selectedLocation.longitude === 0)) {
-        // Use GPS coordinates (more accurate)
-        pickup_lat = selectedLocation.latitude;
-        pickup_lon = selectedLocation.longitude;
-        console.log('📍 Using GPS coordinates:', { lat: pickup_lat, lon: pickup_lon });
-      } else {
-        // Fall back to geocoding the address
-        try {
-          const geo = await geocodeAddress(formData.pickup_label.trim());
+      // Prepare address for geocoding - ensure it includes Malawi context if needed
+      const addressToGeocode = formData.pickup_label.trim();
+      
+      // First, try to geocode the pickup address
+      try {
+        console.log('📍 Step 1: Geocoding pickup address:', addressToGeocode);
+        const geo = await geocodeAddress(addressToGeocode);
 
-          // Coerce to numbers and validate (geocoder may return strings)
-          const latVal: any = (geo as any)?.latitude
-          const lonVal: any = (geo as any)?.longitude
+        // Coerce to numbers and validate (geocoder may return strings)
+        const latVal: any = (geo as any)?.latitude
+        const lonVal: any = (geo as any)?.longitude
 
-          const latNum = latVal == null ? null : Number(latVal)
-          const lonNum = lonVal == null ? null : Number(lonVal)
+        const latNum = latVal == null ? null : Number(latVal)
+        const lonNum = lonVal == null ? null : Number(lonVal)
 
-          if (latNum === null || lonNum === null || Number.isNaN(latNum) || Number.isNaN(lonNum)) {
-            throw new Error('Invalid coordinates from geocoding')
+        if (latNum === null || lonNum === null || Number.isNaN(latNum) || Number.isNaN(lonNum)) {
+          throw new Error('Invalid coordinates from geocoding')
+        }
+
+        // Validate coordinate ranges
+        if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180 || 
+            (latNum === 0 && lonNum === 0)) {
+          throw new Error('Coordinates out of valid range')
+        }
+
+        // Successfully geocoded!
+        pickup_lat = latNum
+        pickup_lon = lonNum
+        usedGeocoding = true
+        console.log('✅ Step 1 SUCCESS: Geocoded pickup coordinates:', { 
+          lat: pickup_lat, 
+          lon: pickup_lon,
+          address: addressToGeocode
+        });
+      } catch (geoError) {
+        console.warn('⚠️ Step 1 FAILED: Geocoding error:', geoError);
+        console.log('📍 Step 2: Falling back to user\'s current GPS location...');
+        
+        // Step 2: Fall back to user's current GPS location
+        if (selectedLocation && 
+            typeof selectedLocation.latitude === 'number' && 
+            typeof selectedLocation.longitude === 'number' &&
+            selectedLocation.latitude >= -90 && selectedLocation.latitude <= 90 &&
+            selectedLocation.longitude >= -180 && selectedLocation.longitude <= 180 &&
+            !(selectedLocation.latitude === 0 && selectedLocation.longitude === 0)) {
+          // Use GPS coordinates as fallback
+          pickup_lat = selectedLocation.latitude;
+          pickup_lon = selectedLocation.longitude;
+          usedGeocoding = false
+          console.log('✅ Step 2 SUCCESS: Using GPS coordinates as fallback:', { 
+            lat: pickup_lat, 
+            lon: pickup_lon 
+          });
+        } else {
+          // Try to get current location if not already available
+          console.log('📍 Attempting to get current GPS location...');
+          try {
+            const { getCurrentLocation } = await import('@/lib/locationService');
+            const currentLoc = await getCurrentLocation();
+            if (currentLoc && 
+                typeof currentLoc.latitude === 'number' && 
+                typeof currentLoc.longitude === 'number' &&
+                currentLoc.latitude >= -90 && currentLoc.latitude <= 90 &&
+                currentLoc.longitude >= -180 && currentLoc.longitude <= 180 &&
+                !(currentLoc.latitude === 0 && currentLoc.longitude === 0)) {
+              pickup_lat = currentLoc.latitude;
+              pickup_lon = currentLoc.longitude;
+              usedGeocoding = false;
+              console.log('✅ Step 2 SUCCESS: Got current GPS location:', { 
+                lat: pickup_lat, 
+                lon: pickup_lon 
+              });
+            } else {
+              throw new Error('Invalid GPS coordinates');
+            }
+          } catch (gpsError) {
+            // Both geocoding and GPS failed
+            console.error('❌ Both geocoding and GPS location failed:', gpsError);
+            setError("Could not determine location coordinates. Please enable location services in your browser settings or enter a more specific address in format 'Location, District' (e.g., 'COM, Blantyre' or 'Area 25, Lilongwe').");
+            setLoading(false);
+            return;
           }
-
-          // Validate coordinate ranges
-          if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180 || 
-              (latNum === 0 && lonNum === 0)) {
-            throw new Error('Coordinates out of valid range')
-          }
-
-          pickup_lat = latNum
-          pickup_lon = lonNum
-          console.log('📍 Using geocoded coordinates:', { lat: pickup_lat, lon: pickup_lon });
-        } catch (geoError) {
-          console.error('Geocoding error:', geoError);
-          setError("Could not determine location coordinates. Please ensure location services are enabled or enter a more specific address.");
-          setLoading(false);
-          return;
         }
       }
+      
+      // Final validation - ensure we have valid coordinates
+      if (pickup_lat === null || pickup_lon === null || 
+          isNaN(pickup_lat) || isNaN(pickup_lon) ||
+          pickup_lat < -90 || pickup_lat > 90 || 
+          pickup_lon < -180 || pickup_lon > 180 ||
+          (pickup_lat === 0 && pickup_lon === 0)) {
+        console.error('❌ Final validation failed - invalid coordinates');
+        setError("Invalid location coordinates. Please try again or enable location services.");
+        setLoading(false);
+        return;
+      }
+      
+      // Log final result
+      console.log(`📍 Final coordinates: ${usedGeocoding ? 'Geocoded' : 'GPS fallback'}`, {
+        lat: pickup_lat,
+        lon: pickup_lon,
+        address: addressToGeocode
+      });
 
       // Prepare item data with pickup location
       const itemData = {
@@ -668,22 +730,23 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <div className="flex items-center gap-2 text-sm text-green-700">
                     <MapPin className="h-4 w-4" />
-                    <span className="font-medium">Using your GPS location for accurate positioning</span>
+                    <span className="font-medium">GPS location available - will be used if geocoding fails</span>
                   </div>
                 </div>
               )}
               <div>
-                <Label htmlFor="pickup_label" className="text-base font-medium">Pickup address/label *</Label>
+                <Label htmlFor="pickup_label" className="text-base font-medium">Pickup Location *</Label>
                 <Input
                   id="pickup_label"
                   value={formData.pickup_label}
                   onChange={(e) => setFormData({ ...formData, pickup_label: e.target.value })}
-                  placeholder="e.g., Near Area 25 Market, Lilongwe, or a landmark"
+                  placeholder="e.g., COM, Blantyre or Area 25, Lilongwe"
                   className="mt-2 text-base h-12"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Enter a descriptive address or landmark. Your GPS coordinates will be used for distance calculations.
+                  Enter location in format: <strong>Area/Location, District</strong> (e.g., "COM, Blantyre" or "Area 25, Lilongwe"). 
+                  The app will find coordinates automatically. If that fails, your current GPS location will be used.
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg">

@@ -218,31 +218,52 @@ export default function NotificationCenter({ onOpenChat, onNavigateToMyItems }: 
       await markAsRead(notification.id)
     }
 
-    // Open chat for more notification types if related_claim_id exists
+    // Open chat for message, item_request, and status_update notifications if related_claim_id exists
     if ((["message", "item_request", "status_update"].includes(notification.type)) && notification.related_claim_id) {
       try {
-        // Get the claim details and user names separately
-        const { data: claimData } = await supabase
+        // Get the claim details to determine the other user
+        const { data: claimData, error: claimError } = await supabase
           .from("claims")
           .select("*")
           .eq("id", notification.related_claim_id)
           .single()
 
-        if (claimData) {
-          // Get the other user's name
-          const otherUserId = claimData.claimer_id === user?.id ? claimData.owner_id : claimData.claimer_id
-          const { data: otherUserProfile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", otherUserId)
-            .single()
+        if (claimError) {
+          console.error("❌ Error fetching claim:", claimError)
+          // Still try to open chat with default name if claim fetch fails
+          onOpenChat(notification.related_claim_id, "User")
+          setIsOpen(false)
+          return
+        }
 
-          const otherUserName = otherUserProfile?.full_name || "User"
+        if (claimData && user) {
+          // Get the other user's name
+          const otherUserId = claimData.claimer_id === user.id ? claimData.owner_id : claimData.claimer_id
+          
+          let otherUserName = "User"
+          try {
+            const { data: otherUserProfile } = await supabase
+              .from("profiles")
+              .select("full_name")
+              .eq("id", otherUserId)
+              .single()
+            
+            otherUserName = otherUserProfile?.full_name || "User"
+          } catch (profileError) {
+            console.error("❌ Error fetching user profile:", profileError)
+            // Continue with default name
+          }
+
           onOpenChat(notification.related_claim_id, otherUserName)
           setIsOpen(false)
         }
       } catch (error) {
         console.error("❌ Error handling notification click:", error)
+        // Still try to open chat even if there's an error
+        if (notification.related_claim_id) {
+          onOpenChat(notification.related_claim_id, "User")
+          setIsOpen(false)
+        }
       }
     }
   }

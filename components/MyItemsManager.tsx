@@ -42,7 +42,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
   const [markingShared, setMarkingShared] = useState<string | null>(null)
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
-  // Fetch request counts for each item
+  // Fetch request counts for each item - separate from fetchMyItems to avoid circular dependency
   const fetchRequestCounts = useCallback(async (itemIds: string[]) => {
     if (itemIds.length === 0) return setRequestCounts({})
     const { data, error } = await supabase
@@ -83,9 +83,24 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
 
       console.log("Successfully fetched user items:", itemData?.length || 0)
       setItems(itemData || [])
-      // Fetch request counts for these items
+      // Fetch request counts for these items - optimized query
       if (itemData && itemData.length > 0) {
-        fetchRequestCounts(itemData.map((item: Item) => item.id))
+        const itemIds = itemData.map((item: Item) => item.id)
+        // Only select needed fields
+        const { data: claimsData, error: claimsError } = await supabase
+          .from("claims")
+          .select("item_id")
+          .in("item_id", itemIds)
+          .in("status", ["pending", "requested"])
+        if (!claimsError && claimsData) {
+          const counts: { [itemId: string]: number } = {}
+          claimsData.forEach((claim: { item_id: string }) => {
+            counts[claim.item_id] = (counts[claim.item_id] || 0) + 1
+          })
+          setRequestCounts(counts)
+        } else {
+          setRequestCounts({})
+        }
       } else {
         setRequestCounts({})
       }
@@ -95,7 +110,7 @@ export default function MyItemsManager({ onItemUpdated }: MyItemsManagerProps) {
     } finally {
       setLoading(false)
     }
-  }, [user, fetchRequestCounts])
+  }, [user]) // Removed fetchRequestCounts from dependencies to break circular dependency
 
   useEffect(() => {
     if (user) {

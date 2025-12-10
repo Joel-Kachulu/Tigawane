@@ -1,6 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
+
+// Global error handlers to prevent app freezes
+if (typeof window !== 'undefined') {
+  // Handle unhandled promise rejections
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('❌ Unhandled promise rejection:', event.reason);
+    event.preventDefault(); // Prevent default browser error handling
+  });
+
+  // Handle general errors
+  window.addEventListener('error', (event) => {
+    console.error('❌ Global error:', event.error);
+  });
+}
 import { useAuth, AuthProvider } from "@/contexts/AuthContext"
 import Auth from "@/components/Auth"
 import LandingPage from "@/components/LandingPage"

@@ -5,12 +5,14 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, MessageCircle, MapPin, Heart, Users, Globe, Sparkles } from "lucide-react"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import Image from 'next/image'
 import SubmitStoryModal from "./SubmitStoryModal"
 import { supabase } from "@/lib/supabase"
 import { useLocation } from "@/contexts/LocationContext"
 import { calculateDistance } from "@/lib/locationService"
+import { fetchCommunityStats, fetchStories, fetchProfiles } from "@/lib/dataFetching"
+import { nearbyItemsCache, generateCacheKey, CACHE_TTL } from "@/lib/cache"
 // Authentic images of African people sharing and community building
 const HERO_IMAGE_URL = "/images/hero1.jpg" // local fallback hero image
 // Slideshow images for hero background (use files in public/images)
@@ -134,35 +136,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     }
   }, [setSelectedLocation])
 
-  // Fetch community stats from database
+  // Fetch community stats from database with caching
   useEffect(() => {
-    async function fetchCommunityStats() {
+    async function loadCommunityStats() {
       setStatsLoading(true)
       try {
-        // Run all queries in parallel for better performance
-        const [itemsResult, membersResult, collaborationsResult] = await Promise.all([
-          // Get total items count (both food and non-food items)
-          supabase
-            .from("items")
-            .select("*", { count: 'exact', head: true }),
-          
-          // Get total community members count
-          supabase
-            .from("profiles")
-            .select("*", { count: 'exact', head: true }),
-          
-          // Get active collaborations count
-          supabase
-            .from("collaboration_requests")
-            .select("*", { count: 'exact', head: true })
-            .eq("status", "active")
-        ])
-
-        setCommunityStats({
-          itemsShared: itemsResult.count || 0,
-          communityMembers: membersResult.count || 0,
-          activeCollaborations: collaborationsResult.count || 0
-        })
+        const stats = await fetchCommunityStats()
+        setCommunityStats(stats)
       } catch (error) {
         console.error('Error fetching community stats:', error)
         // Keep default values on error
@@ -170,15 +150,29 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         setStatsLoading(false)
       }
     }
-    fetchCommunityStats()
+    loadCommunityStats()
   }, [])
 
-  // Fetch nearby items function (moved outside useEffect)
-  async function fetchNearbyItems() {
+  // Memoize fetchNearbyItems to prevent recreation
+  const fetchNearbyItems = useCallback(async () => {
     if (!selectedLocation) {
       setNearbyLoading(false)
       return
     }
+    
+    // Check cache first
+    const cacheKey = generateCacheKey('nearby', {
+      lat: selectedLocation.latitude,
+      lon: selectedLocation.longitude,
+    });
+    const cached = nearbyItemsCache.get<NearbyItem[]>(cacheKey);
+    if (cached) {
+      console.log('✅ Using cached nearby items');
+      setNearbyItems(cached);
+      setNearbyLoading(false);
+      return;
+    }
+    
     setNearbyLoading(true)
     try {
       // Create a bounding box around the user's location (approximately 10km radius)
@@ -241,6 +235,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         .filter(item => item.distance <= 5) // Only show items within 5km
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 5) // Show only 5 closest items
+      
+      // Cache the results
+      nearbyItemsCache.set(cacheKey, itemsWithDistance, CACHE_TTL.NEARBY_ITEMS);
       setNearbyItems(itemsWithDistance)
     } catch (error) {
       console.error('Error fetching nearby items:', error)
@@ -248,12 +245,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     } finally {
       setNearbyLoading(false)
     }
-  }
+  }, [selectedLocation]);
 
   // Fetch nearby items when user location is available
   useEffect(() => {
     fetchNearbyItems()
-  }, [selectedLocation])
+  }, [fetchNearbyItems])
 
   // Auto-refresh nearby items when tab becomes visible again
   useEffect(() => {
@@ -266,24 +263,24 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [selectedLocation]);
+  }, [fetchNearbyItems]);
 
-  // Fetch stories (keeping existing logic)
+  // Fetch stories with caching
   useEffect(() => {
-    async function fetchStories() {
-      const { data, error } = await supabase
-        .from("stories")
-        .select("*")
-        .eq("status", "approved")
-        .order("created_at", { ascending: false })
-        .limit(4)
-      if (data && data.length > 0) {
-        setStories(data)
-      } else {
+    async function loadStories() {
+      try {
+        const data = await fetchStories(4)
+        if (data && data.length > 0) {
+          setStories(data)
+        } else {
+          setStories(dummyStories)
+        }
+      } catch (error) {
+        console.error('Error fetching stories:', error)
         setStories(dummyStories)
       }
     }
-    fetchStories()
+    loadStories()
   }, [])
 
   // Hero image slideshow
@@ -370,8 +367,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </Button>
         </div>
       </header>
-      {/* Hero Section */}
-      <section ref={heroRef} className="relative bg-gradient-to-r from-green-600 to-blue-500 text-white min-h-[80vh] flex items-center justify-center overflow-hidden">
+      {/* Hero Section - Optimized for viewport */}
+      <section ref={heroRef} className="relative bg-gradient-to-r from-green-600 to-blue-500 text-white min-h-[60vh] sm:min-h-[65vh] flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0">
           {HERO_IMAGES.map((image, index) => (
@@ -393,80 +390,78 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <div className="absolute inset-0 bg-gradient-to-r from-green-600/80 to-blue-500/80" />
         </div>
 
-        {/* Floating Elements */}
+        {/* Floating Elements - Reduced for better performance */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '3s' }} />
-          <div className="absolute top-40 right-20 w-16 h-16 bg-yellow-400/20 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }} />
-          <div className="absolute bottom-40 left-20 w-12 h-12 bg-white/15 rounded-full animate-bounce" style={{ animationDelay: '2s', animationDuration: '5s' }} />
-          <Heart className="absolute top-32 right-32 w-8 h-8 text-white/30 animate-pulse" style={{ animationDelay: '0.5s' }} />
-          <Users className="absolute bottom-32 right-16 w-6 h-6 text-white/40 animate-pulse" style={{ animationDelay: '1.5s' }} />
-          <Globe className="absolute top-60 left-32 w-7 h-7 text-white/25 animate-pulse" style={{ animationDelay: '2.5s' }} />
+          <div className="absolute top-10 left-10 w-12 h-12 bg-white/10 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '3s' }} />
+          <div className="absolute top-20 right-20 w-10 h-10 bg-yellow-400/20 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }} />
+          <Heart className="absolute top-16 right-16 w-6 h-6 text-white/30 animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <Users className="absolute bottom-20 right-12 w-5 h-5 text-white/40 animate-pulse" style={{ animationDelay: '1.5s' }} />
         </div>
 
-        <div className={`max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24 flex flex-col items-center justify-center text-center space-y-10 relative z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-          <div className="space-y-6">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 drop-shadow-lg animate-fade-in-up leading-tight" style={{ animationDelay: '0.2s' }}>
+        <div className={`max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 flex flex-col items-center justify-center text-center space-y-5 sm:space-y-7 relative z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+          <div className="space-y-3 sm:space-y-4">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold drop-shadow-lg animate-fade-in-up leading-tight" style={{ animationDelay: '0.2s' }}>
               <span className="block text-yellow-300">Tigawane</span>
-              Community Sharing
+              <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl">Community Sharing</span>
             </h1>
-            <p className="text-xl md:text-2xl lg:text-3xl max-w-3xl mx-auto text-white/90 mb-10 drop-shadow animate-fade-in-up leading-relaxed" style={{ animationDelay: '0.4s' }}>
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl max-w-3xl mx-auto text-white/90 drop-shadow animate-fade-in-up leading-relaxed px-2" style={{ animationDelay: '0.4s' }}>
               Connect with your neighbors to share food, items, and experiences. 
-              <span className="block mt-2 text-green-200 font-semibold">Build stronger communities through generous sharing.</span>
+              <span className="block mt-1.5 sm:mt-2 text-green-200 font-semibold text-sm sm:text-base md:text-lg">Build stronger communities through generous sharing.</span>
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in-up w-full max-w-2xl px-4" style={{ animationDelay: '0.6s' }}>
             <Button
               onClick={onGetStarted}
               size="lg"
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 group min-w-[240px]"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base sm:text-lg lg:text-xl px-6 sm:px-8 lg:px-10 py-4 sm:py-5 lg:py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 group w-full sm:w-auto sm:min-w-[200px] lg:min-w-[240px]"
             >
-              <span className="mr-3 text-2xl">🍽️</span>
+              <span className="mr-2 sm:mr-3 text-lg sm:text-xl lg:text-2xl">🍽️</span>
               Browse Nearby Food
             </Button>
             <Button
               onClick={onGetStarted}
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-green-600 font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-sm min-w-[240px]"
+              className="border-2 border-white text-green-600 hover:bg-white hover:text-green-600 font-bold text-base sm:text-lg lg:text-xl px-6 sm:px-8 lg:px-10 py-4 sm:py-5 lg:py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-sm w-full sm:w-auto sm:min-w-[200px] lg:min-w-[240px]"
             >
-              <ArrowRight className="mr-3 h-6 w-6" />
+              <ArrowRight className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
               Share an Item
             </Button>
           </div>
 
-          {/* Community Stats */}
-          <div className="flex flex-wrap justify-center gap-8 text-center mt-12 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
+          {/* Community Stats - Compact */}
+          <div className="flex flex-wrap justify-center gap-5 sm:gap-6 lg:gap-8 text-center mt-4 sm:mt-6 lg:mt-8 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-yellow-300 mb-2 drop-shadow-lg">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-yellow-300 mb-1 drop-shadow-lg">
                 {statsLoading ? '...' : `${communityStats.itemsShared}+`}
               </div>
-              <div className="text-sm text-white/90 font-medium">Items Shared</div>
+              <div className="text-xs sm:text-sm text-white/90 font-medium">Items Shared</div>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-green-300 mb-2 drop-shadow-lg">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-green-300 mb-1 drop-shadow-lg">
                 {statsLoading ? '...' : `${communityStats.communityMembers}+`}
               </div>
-              <div className="text-sm text-white/90 font-medium">Community Members</div>
+              <div className="text-xs sm:text-sm text-white/90 font-medium">Community Members</div>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-blue-300 mb-2 drop-shadow-lg">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-300 mb-1 drop-shadow-lg">
                 {statsLoading ? '...' : communityStats.activeCollaborations}
               </div>
-              <div className="text-sm text-white/90 font-medium">Active Collaborations</div>
+              <div className="text-xs sm:text-sm text-white/90 font-medium">Active Collaborations</div>
             </div>
           </div>
         </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">
-            <div className="w-1 h-3 bg-white/70 rounded-full mt-2 animate-pulse"></div>
+        {/* Scroll Indicator - Only show if content is below fold */}
+        <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 animate-bounce hidden sm:block">
+          <div className="w-5 h-8 border-2 border-white/50 rounded-full flex justify-center">
+            <div className="w-1 h-2 bg-white/70 rounded-full mt-1.5 animate-pulse"></div>
           </div>
         </div>
       </section>
 
       {/* Featured Sections - Near You & Trending */}
-      <section className="py-16 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
+      <section data-section="near-you" className="py-16 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           {/* Near You Section */}
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl">
@@ -991,7 +986,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               onClick={onGetStarted}
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-green-600 font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-sm"
+              className="border-white text-green-600 hover:bg-white hover:text-green-600 font-bold text-xl px-10 py-6 shadow-lg rounded-full transform hover:scale-105 hover:shadow-xl transition-all duration-300 backdrop-blur-sm"
             >
               See What's Being Shared
             </Button>
@@ -1044,16 +1039,51 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
                 <h3 className="text-lg font-semibold mb-6 text-white">Quick Links</h3>
                 <div className="space-y-3">
-                  <a href="#" className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group">
+                  <a 
+                    href="#how-it-works" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group"
+                  >
                     <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">How It Works</span>
                   </a>
-                  <a href="#" className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group">
-                    <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">Share Items</span>
+                  <a 
+                    href="#what-to-share" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById('what-to-share')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group"
+                  >
+                    <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">What to Share</span>
                   </a>
-                  <a href="#" className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group">
+                  <a 
+                    href="#near-you" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const nearYouSection = document.querySelector('[data-section="near-you"]');
+                      if (nearYouSection) {
+                        nearYouSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      } else {
+                        // Fallback: scroll to top and trigger Get Started
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setTimeout(() => onGetStarted(), 500);
+                      }
+                    }}
+                    className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group"
+                  >
                     <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">Find Items</span>
                   </a>
-                  <a href="#" className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group">
+                  <a 
+                    href="#stories" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="block text-gray-300 hover:text-green-400 transition-colors duration-300 group"
+                  >
                     <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">Success Stories</span>
                   </a>
             </div>
@@ -1133,9 +1163,36 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </p>
               </div>
               <div className="flex items-center gap-6 text-sm text-gray-400 opacity-0 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-                <a href="#" className="hover:text-green-400 transition-colors duration-300">Privacy Policy</a>
-                <a href="#" className="hover:text-green-400 transition-colors duration-300">Terms of Service</a>
-                <a href="#" className="hover:text-green-400 transition-colors duration-300">Help Center</a>
+                <a 
+                  href="#how-it-works" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="hover:text-green-400 transition-colors duration-300"
+                >
+                  Privacy Policy
+                </a>
+                <a 
+                  href="#how-it-works" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="hover:text-green-400 transition-colors duration-300"
+                >
+                  Terms of Service
+                </a>
+                <a 
+                  href="#how-it-works" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="hover:text-green-400 transition-colors duration-300"
+                >
+                  Help Center
+                </a>
               </div>
             </div>
           </div>

@@ -40,24 +40,48 @@ export default function LocationSelector({ showRadiusSelector = true, className 
       // Call our server-side geocode proxy to avoid CORS and rate-limit issues
       const resp = await fetch(`/api/geocode?q=${encodeURIComponent(customCity)}&country=MW`);
       if (!resp.ok) {
-        // If no result, fallback to setting the address with zeroed coords
-        setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
-      } else {
-        const data = await resp.json();
-        // data expected: { latitude, longitude, display_name }
-        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
-          setSelectedLocation({
-            latitude: Number(data.latitude),
-            longitude: Number(data.longitude),
-            address: data.display_name || customCity,
-          });
-        } else {
-          setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
+        // If geocoding fails, show error and don't set invalid coordinates
+        const errorData = await resp.json().catch(() => ({}));
+        console.error('Geocoding failed:', errorData.error || 'Unknown error');
+        alert(`Could not find coordinates for "${customCity}". Please try a more specific location (e.g., "Lilongwe, Malawi" or "Area 25, Lilongwe").`);
+        setIsSettingCity(false);
+        return;
+      }
+      
+      const data = await resp.json();
+      // Validate coordinates before setting
+      if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        const lat = Number(data.latitude);
+        const lon = Number(data.longitude);
+        
+        // Validate coordinate ranges
+        if (isNaN(lat) || isNaN(lon) || 
+            lat < -90 || lat > 90 || 
+            lon < -180 || lon > 180 ||
+            (lat === 0 && lon === 0)) {
+          console.error('Invalid coordinates from geocoding:', lat, lon);
+          alert(`Invalid coordinates received for "${customCity}". Please try again.`);
+          setIsSettingCity(false);
+          return;
         }
+        
+        setSelectedLocation({
+          latitude: lat,
+          longitude: lon,
+          address: data.display_name || customCity,
+        });
+        console.log('✅ Location set successfully:', { lat, lon, address: data.display_name || customCity });
+      } else {
+        console.error('Invalid geocoding response:', data);
+        alert(`Could not get valid coordinates for "${customCity}". Please try a more specific location.`);
+        setIsSettingCity(false);
+        return;
       }
     } catch (err) {
       console.error('Geocode error:', err);
-      setSelectedLocation({ latitude: 0, longitude: 0, address: customCity });
+      alert(`Error geocoding "${customCity}". Please check your internet connection and try again.`);
+      setIsSettingCity(false);
+      return;
     }
     setCustomCity("");
     setIsSettingCity(false);

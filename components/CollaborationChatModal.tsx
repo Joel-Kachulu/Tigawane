@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -9,7 +8,26 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send, Users, Package, Utensils, Gift, ExternalLink, Clock, MapPin, Calendar, MessageCircle, Loader2 } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Send, 
+  Users, 
+  Package, 
+  Utensils, 
+  Gift, 
+  ExternalLink, 
+  Clock, 
+  MapPin, 
+  Calendar, 
+  MessageCircle, 
+  Loader2,
+  X,
+  ChevronDown,
+  Smile,
+  MoreVertical,
+  Heart,
+  ThumbsUp
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface CollaborationMessage {
@@ -60,17 +78,41 @@ export default function CollaborationChatModal({
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
+  const [activeTab, setActiveTab] = useState<"chat" | "participants" | "donations">("chat")
+  const [showParticipants, setShowParticipants] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout>()
+
+  // Auto-scroll to bottom
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    } else if (scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+      if (scrollElement) {
+        scrollElement.scrollTo({
+          top: scrollElement.scrollHeight,
+          behavior: "smooth"
+        })
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (collaborationId && isOpen) {
       fetchMessages()
       fetchParticipants()
       fetchDonationSummary()
+      // Focus input when modal opens
+      setTimeout(() => inputRef.current?.focus(), 100)
 
-      // Subscribe to new messages
+      // Create unique channel name
+      const channelName = `collaboration_messages:${collaborationId}:${Date.now()}`
       const subscription = supabase
-        .channel(`collaboration_messages:${collaborationId}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           {
@@ -81,9 +123,9 @@ export default function CollaborationChatModal({
           },
           (payload) => {
             const newMsg = payload.new as CollaborationMessage
-            // Fetch sender name for the new message
             fetchSenderName(newMsg.sender_id).then((senderName) => {
               setMessages((prev) => [...prev, { ...newMsg, sender_name: senderName }])
+              setTimeout(scrollToBottom, 100)
             })
           },
         )
@@ -93,17 +135,12 @@ export default function CollaborationChatModal({
         subscription.unsubscribe()
       }
     }
-  }, [collaborationId, isOpen])
+  }, [collaborationId, isOpen, scrollToBottom])
 
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight
-      }
-    }
-  }, [messages])
+    // Scroll to bottom when messages change
+    setTimeout(scrollToBottom, 100)
+  }, [messages, scrollToBottom])
 
   const fetchSenderName = async (senderId: string): Promise<string> => {
     const { data } = await supabase.from("profiles").select("full_name").eq("id", senderId).single()
@@ -113,69 +150,79 @@ export default function CollaborationChatModal({
   const fetchMessages = async () => {
     if (!collaborationId) return
 
-    const { data, error } = await supabase
-      .from("collaboration_messages")
-      .select("*")
-      .eq("collaboration_id", collaborationId)
-      .order("created_at", { ascending: true })
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("collaboration_messages")
+        .select("*")
+        .eq("collaboration_id", collaborationId)
+        .order("created_at", { ascending: true })
+        .limit(100)
 
-    if (error) {
+      if (error) {
+        console.error("Error fetching messages:", error)
+      } else {
+        // Get sender names for all messages
+        const messagesWithNames = await Promise.all(
+          (data || []).map(async (msg) => {
+            const senderName = await fetchSenderName(msg.sender_id)
+            return {
+              ...msg,
+              sender_name: senderName,
+            }
+          }),
+        )
+        setMessages(messagesWithNames)
+      }
+    } catch (error) {
       console.error("Error fetching messages:", error)
-    } else {
-      // Get sender names for all messages
-      const messagesWithNames = await Promise.all(
-        (data || []).map(async (msg) => {
-          const senderName = await fetchSenderName(msg.sender_id)
-          return {
-            ...msg,
-            sender_name: senderName,
-          }
-        }),
-      )
-      setMessages(messagesWithNames)
+    } finally {
+      setLoading(false)
     }
   }
 
   const fetchParticipants = async () => {
     if (!collaborationId) return
 
-    // First get participant user IDs
-    const { data: participantData, error } = await supabase
-      .from("collaboration_participants")
-      .select("*")
-      .eq("collaboration_id", collaborationId)
+    try {
+      const { data: participantData, error } = await supabase
+        .from("collaboration_participants")
+        .select("*")
+        .eq("collaboration_id", collaborationId)
 
-    if (error) {
-      console.error("Error fetching participants:", error)
-      return
-    }
-
-    if (!participantData || participantData.length === 0) {
-      setParticipants([])
-      return
-    }
-
-    // Then get their profile information
-    const userIds = participantData.map((p) => p.user_id)
-    const { data: profilesData } = await supabase.from("profiles").select("id, full_name").in("id", userIds)
-
-    // Combine participant and profile data
-    const participantsWithProfiles = participantData.map((participant) => {
-      const profile = profilesData?.find((p) => p.id === participant.user_id)
-      return {
-        ...participant,
-        full_name: profile?.full_name || null,
+      if (error) {
+        console.error("Error fetching participants:", error)
+        return
       }
-    })
 
-    setParticipants(participantsWithProfiles)
+      if (!participantData || participantData.length === 0) {
+        setParticipants([])
+        return
+      }
+
+      // Get their profile information
+      const userIds = participantData.map((p) => p.user_id)
+      const { data: profilesData } = await supabase.from("profiles").select("id, full_name").in("id", userIds)
+
+      // Combine participant and profile data
+      const participantsWithProfiles = participantData.map((participant) => {
+        const profile = profilesData?.find((p) => p.id === participant.user_id)
+        return {
+          ...participant,
+          full_name: profile?.full_name || null,
+        }
+      })
+
+      setParticipants(participantsWithProfiles)
+    } catch (error) {
+      console.error("Error fetching participants:", error)
+    }
   }
 
   const fetchDonationSummary = async () => {
     if (!collaborationId) return
 
     try {
-      // Get items for this collaboration - show all items regardless of location
       const { data: donationData, error } = await supabase
         .from("items")
         .select("id, title, item_type, user_id, created_at")
@@ -205,7 +252,11 @@ export default function CollaborationChatModal({
         return
       }
 
-      // Process data efficiently without additional queries
+      // Get user names for donations
+      const userIds = [...new Set(donationData.map(item => item.user_id))]
+      const { data: profilesData } = await supabase.from("profiles").select("id, full_name").in("id", userIds)
+      const profilesMap = new Map(profilesData?.map(p => [p.id, p.full_name]) || [])
+
       const foodCount = donationData.filter(item => item.item_type === "food").length
       const itemCount = donationData.filter(item => item.item_type === "non-food").length
 
@@ -213,7 +264,7 @@ export default function CollaborationChatModal({
         id: item.id,
         title: item.title,
         item_type: item.item_type,
-        user_name: "Anonymous", // Note: Would need to join with profiles table to get user name
+        user_name: profilesMap.get(item.user_id) || "Anonymous",
         created_at: item.created_at
       }))
 
@@ -241,7 +292,7 @@ export default function CollaborationChatModal({
     setNewMessage("")
     
     // Optimistically add message to UI
-    const optimisticMessage = {
+    const optimisticMessage: CollaborationMessage = {
       id: `temp-${Date.now()}`,
       message: messageText,
       sender_id: user.id,
@@ -250,8 +301,7 @@ export default function CollaborationChatModal({
     }
     
     setMessages(prev => [...prev, optimisticMessage])
-    
-    setLoading(true)
+    setTimeout(scrollToBottom, 50)
 
     try {
       const { data, error } = await supabase.from("collaboration_messages").insert({
@@ -275,8 +325,6 @@ export default function CollaborationChatModal({
       // Remove optimistic message on error
       setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id))
       alert(`Error sending message: ${error.message}`)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -302,136 +350,403 @@ export default function CollaborationChatModal({
     return date.toLocaleDateString()
   }
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today"
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday"
+    } else {
+      return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    }
+  }
+
+  const groupMessagesByDate = (messages: CollaborationMessage[]) => {
+    const groups: { [key: string]: CollaborationMessage[] } = {}
+    
+    messages.forEach((message) => {
+      const date = new Date(message.created_at).toDateString()
+      if (!groups[date]) {
+        groups[date] = []
+      }
+      groups[date].push(message)
+    })
+    
+    return groups
+  }
+
   const handleNavigateToFullPage = () => {
     setIsNavigating(true)
-    onClose() // Close the modal first
-    // Use Next.js router for instant navigation within the app
+    onClose()
     router.push(`/collaborations/${collaborationId}`)
     setIsNavigating(false)
   }
 
   if (!collaborationId) return null
 
+  const messageGroups = groupMessagesByDate(messages)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] p-0 m-2 sm:m-6">
-        <DialogHeader className="border-b pb-4 px-4 sm:px-6 pt-4 sm:pt-6 bg-white rounded-t-lg">
+      <DialogContent className="max-w-6xl w-full h-[95vh] max-h-[95vh] p-0 m-2 sm:m-4 md:m-6 flex flex-col overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="border-b pb-3 px-4 sm:px-6 pt-4 sm:pt-6 bg-gradient-to-r from-green-50 to-blue-50 flex-shrink-0">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 truncate">{collaborationTitle}</DialogTitle>
-                <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-1">
-                  Chat with participants and view collaboration items
-                </DialogDescription>
-                <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
-                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 px-2 py-1">
-                    <Users className="h-3 w-3 mr-1" />
-                    {participants.length}
-                  </Badge>
+                <DialogTitle className="text-base sm:text-xl font-bold text-gray-900 truncate">
+                  {collaborationTitle}
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                  {participants.length} {participants.length === 1 ? 'participant' : 'participants'}
                   {donationSummary && donationSummary.total_count > 0 && (
-                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 px-2 py-1">
-                      <Gift className="h-3 w-3 mr-1" />
-                      {donationSummary.total_count}
-                    </Badge>
+                    <> · {donationSummary.total_count} {donationSummary.total_count === 1 ? 'item' : 'items'} shared</>
                   )}
-                </div>
+                </DialogDescription>
               </div>
             </div>
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 sm:px-4 sm:py-3 flex-shrink-0 min-h-[44px] rounded-xl touch-target-lg"
-              onClick={handleNavigateToFullPage}
-              disabled={isNavigating}
-            >
-              {isNavigating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <ExternalLink className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">View Full Page</span>
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden sm:flex bg-white hover:bg-gray-50 border-gray-300"
+                onClick={handleNavigateToFullPage}
+                disabled={isNavigating}
+              >
+                {isNavigating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    <span>Full Page</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Chat Area */}
-          <div className="flex-1 px-6">
-            <ScrollArea className="h-96 p-4" ref={scrollAreaRef}>
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${
-                      message.sender_id === user?.id ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {message.sender_id !== user?.id && (
-                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium">
-                        {message.sender_name?.charAt(0) || "U"}
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+          {/* Chat Section */}
+          <div className="flex-1 flex flex-col min-h-0 min-w-0">
+            {/* Messages Area */}
+            <ScrollArea 
+              className="flex-1 px-3 sm:px-4 md:px-6" 
+              ref={scrollAreaRef}
+            >
+              <div className="py-4 space-y-4">
+                {loading && messages.length === 0 ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : Object.keys(messageGroups).length === 0 ? (
+                  <div className="text-center text-gray-500 py-12">
+                    <MessageCircle className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium mb-2">No messages yet</p>
+                    <p className="text-sm">Start the conversation!</p>
+                  </div>
+                ) : (
+                  Object.entries(messageGroups).map(([date, dateMessages]) => (
+                    <div key={date} className="space-y-4">
+                      {/* Date Separator */}
+                      <div className="flex items-center justify-center my-6">
+                        <div className="flex items-center gap-2 px-4 py-1.5 bg-gray-100 rounded-full">
+                          <Calendar className="h-4 w-4 text-gray-500" />
+                          <span className="text-xs font-medium text-gray-600">
+                            {formatDate(dateMessages[0].created_at)}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.sender_id === user?.id
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-100 text-gray-900"
-                      }`}
-                    >
-                      <p className="text-xs font-medium mb-1 opacity-80">
-                        {message.sender_id === user?.id ? "You" : (message.sender_name || "Unknown User")}
-                      </p>
-                      <p className="text-sm">{message.message}</p>
-                      <p className="text-xs opacity-70 mt-1">
-                        {formatTime(message.created_at)}
-                      </p>
+
+                      {/* Messages for this date */}
+                      {dateMessages.map((message, index) => {
+                        const isOwnMessage = message.sender_id === user?.id
+                        const isConsecutive = index > 0 && 
+                          dateMessages[index - 1].sender_id === message.sender_id &&
+                          new Date(message.created_at).getTime() - new Date(dateMessages[index - 1].created_at).getTime() < 300000 // 5 minutes
+                        
+                        return (
+                          <div
+                            key={message.id}
+                            className={`flex gap-2 sm:gap-3 ${isOwnMessage ? "justify-end" : "justify-start"} ${isConsecutive ? "mt-1" : "mt-4"}`}
+                          >
+                            {/* Avatar - only show if not consecutive */}
+                            {!isOwnMessage && !isConsecutive && (
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-sm font-semibold text-white flex-shrink-0 shadow-md">
+                                {message.sender_name?.charAt(0).toUpperCase() || "U"}
+                              </div>
+                            )}
+                            {!isOwnMessage && isConsecutive && (
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
+                            )}
+
+                            {/* Message Bubble */}
+                            <div className={`flex flex-col max-w-[75%] sm:max-w-[60%] md:max-w-[50%] ${isOwnMessage ? "items-end" : "items-start"}`}>
+                              {/* Sender Name - only show if not consecutive */}
+                              {!isConsecutive && (
+                                <span className={`text-xs font-semibold mb-1 px-1 ${isOwnMessage ? "text-green-700" : "text-gray-700"}`}>
+                                  {isOwnMessage ? "You" : (message.sender_name || "Anonymous")}
+                                </span>
+                              )}
+                              
+                              <div
+                                className={`group relative px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-sm ${
+                                  isOwnMessage
+                                    ? "bg-gradient-to-br from-green-500 to-green-600 text-white rounded-br-sm"
+                                    : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                                }`}
+                              >
+                                <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">
+                                  {message.message}
+                                </p>
+                                
+                                {/* Time and Actions */}
+                                <div className={`flex items-center gap-2 mt-1.5 ${isOwnMessage ? "justify-end" : "justify-start"}`}>
+                                  <span className={`text-[10px] sm:text-xs ${isOwnMessage ? "text-green-100" : "text-gray-500"}`}>
+                                    {formatTime(message.created_at)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Avatar for own messages */}
+                            {isOwnMessage && !isConsecutive && (
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-sm font-semibold text-white flex-shrink-0 shadow-md">
+                                {message.sender_name?.charAt(0).toUpperCase() || "Y"}
+                              </div>
+                            )}
+                            {isOwnMessage && isConsecutive && (
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
-                    {message.sender_id === user?.id && (
-                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-sm font-medium text-white">
-                        {message.sender_name?.charAt(0) || "U"}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {messages.length === 0 && (
-                  <div className="text-center text-gray-500 py-8">
-                    <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>No messages yet. Start the conversation!</p>
-                  </div>
+                  ))
                 )}
+                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
+
+            {/* Message Input */}
+            <div className="border-t bg-white px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex-shrink-0">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  sendMessage()
+                }} 
+                className="flex gap-2 sm:gap-3 items-end"
+              >
+                <div className="flex-1 relative">
+                  <Input
+                    ref={inputRef}
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value)
+                      // Typing indicator logic could go here
+                    }}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type your message..."
+                    className="w-full py-3 px-4 text-base sm:text-sm rounded-xl border-2 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all min-h-[48px] resize-none"
+                    disabled={loading}
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={loading || !newMessage.trim()}
+                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 sm:px-6 py-3 min-h-[48px] min-w-[48px] sm:min-w-[60px] rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </Button>
+              </form>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Press Enter to send, Shift+Enter for new line
+              </p>
+            </div>
           </div>
 
-          {/* Message Input */}
-          <div className="border-t p-4 sm:p-6 bg-white rounded-b-lg">
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage();
-            }} className="flex gap-3">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type your message..."
-                className="flex-1 py-3 px-4 text-base sm:text-sm rounded-xl border-2 border-gray-200 focus:border-green-500 transition-colors min-h-[48px] mobile-text-base"
-                disabled={loading}
-              />
-              <Button 
-                type="submit" 
-                disabled={loading || !newMessage.trim()}
-                className="bg-green-600 hover:bg-green-700 px-4 py-3 min-h-[48px] min-w-[48px] rounded-xl touch-target-lg"
-              >
-                {loading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+          {/* Sidebar - Desktop only or mobile tab */}
+          {isMobile ? (
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="border-t md:border-t-0 md:border-l w-full md:w-80 flex-shrink-0">
+              <TabsList className="grid w-full grid-cols-2 md:hidden">
+                <TabsTrigger value="participants" className="text-xs">
+                  <Users className="h-4 w-4 mr-1" />
+                  Participants
+                </TabsTrigger>
+                <TabsTrigger value="donations" className="text-xs">
+                  <Gift className="h-4 w-4 mr-1" />
+                  Donations
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="participants" className="mt-0 p-4 max-h-[300px] overflow-y-auto">
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Participants ({participants.length})
+                  </h3>
+                  {participants.map((participant) => (
+                    <div key={participant.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-sm font-semibold text-white">
+                        {participant.full_name?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 flex-1">
+                        {participant.full_name || "Anonymous"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="donations" className="mt-0 p-4 max-h-[300px] overflow-y-auto">
+                {donationSummary && donationSummary.total_count > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-green-50 p-3 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Utensils className="h-4 w-4 text-green-600" />
+                          <span className="text-xs font-medium text-green-700">Food</span>
+                        </div>
+                        <p className="text-2xl font-bold text-green-700">{donationSummary.food_count}</p>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Package className="h-4 w-4 text-blue-600" />
+                          <span className="text-xs font-medium text-blue-700">Items</span>
+                        </div>
+                        <p className="text-2xl font-bold text-blue-700">{donationSummary.item_count}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Recent Donations</h4>
+                      <div className="space-y-2">
+                        {donationSummary.recent_donations.slice(0, 5).map((donation) => (
+                          <div key={donation.id} className="p-2 bg-gray-50 rounded-lg text-xs">
+                            <p className="font-medium text-gray-900">{donation.title}</p>
+                            <p className="text-gray-600">{donation.user_name} · {formatTime(donation.created_at)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <Send className="h-5 w-5" />
+                  <div className="text-center text-gray-500 py-8">
+                    <Gift className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No donations yet</p>
+                  </div>
                 )}
-              </Button>
-            </form>
-          </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="hidden md:flex md:flex-col md:w-80 border-l bg-gray-50 flex-shrink-0">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
+                <TabsList className="grid w-full grid-cols-2 m-2">
+                  <TabsTrigger value="participants" className="text-xs">
+                    <Users className="h-4 w-4 mr-1" />
+                    People
+                  </TabsTrigger>
+                  <TabsTrigger value="donations" className="text-xs">
+                    <Gift className="h-4 w-4 mr-1" />
+                    Items
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="participants" className="flex-1 overflow-y-auto p-4 mt-0">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Participants ({participants.length})
+                    </h3>
+                    {participants.map((participant) => (
+                      <div key={participant.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white transition-colors cursor-pointer">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-md">
+                          {participant.full_name?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 flex-1">
+                          {participant.full_name || "Anonymous"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="donations" className="flex-1 overflow-y-auto p-4 mt-0">
+                  {donationSummary && donationSummary.total_count > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Utensils className="h-5 w-5 text-green-600" />
+                            <span className="text-sm font-semibold text-green-700">Food</span>
+                          </div>
+                          <p className="text-3xl font-bold text-green-700">{donationSummary.food_count}</p>
+                        </div>
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Package className="h-5 w-5 text-blue-600" />
+                            <span className="text-sm font-semibold text-blue-700">Items</span>
+                          </div>
+                          <p className="text-3xl font-bold text-blue-700">{donationSummary.item_count}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Recent Donations
+                        </h4>
+                        <div className="space-y-2">
+                          {donationSummary.recent_donations.slice(0, 8).map((donation) => (
+                            <div key={donation.id} className="p-3 bg-white rounded-lg border border-gray-200 hover:border-green-300 transition-colors cursor-pointer">
+                              <div className="flex items-start gap-2">
+                                {donation.item_type === "food" ? (
+                                  <Utensils className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                ) : (
+                                  <Package className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-gray-900 truncate">{donation.title}</p>
+                                  <p className="text-xs text-gray-600 mt-0.5">
+                                    {donation.user_name} · {formatTime(donation.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-12">
+                      <Gift className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-sm font-medium mb-1">No donations yet</p>
+                      <p className="text-xs">Be the first to share!</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
