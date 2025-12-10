@@ -26,12 +26,28 @@ export const getCurrentLocation = (): Promise<Location> => {
         });
       },
       (error) => {
-        reject(new Error(`Geolocation error: ${error.message}`));
+        // Provide more specific error messages
+        let errorMessage = 'Geolocation error: ';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += 'Permission denied. Please enable location access in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += 'Location information unavailable.';
+            break;
+          case error.TIMEOUT:
+            errorMessage += 'Location request timed out. Please try again or set location manually.';
+            break;
+          default:
+            errorMessage += error.message || 'Unknown error';
+            break;
+        }
+        reject(new Error(errorMessage));
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes
+        enableHighAccuracy: false, // Changed to false for faster response
+        timeout: 15000, // Increased to 15 seconds
+        maximumAge: 300000, // 5 minutes - use cached location if available
       }
     );
   });
@@ -65,35 +81,36 @@ export const formatDistance = (distance: number): string => {
   return `${distance.toFixed(1)}km`;
 };
 
-// Geocode an address to coordinates (using a free geocoding service)
+// Geocode an address to coordinates (using our API proxy to avoid CORS and certificate issues)
 export const geocodeAddress = async (address: string): Promise<Location> => {
   try {
-    // Using Nominatim (OpenStreetMap) for free geocoding
+    // Use our API route instead of direct Nominatim call to avoid CORS and certificate issues
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        address
-      )}&limit=1`
+      `/api/geocode?q=${encodeURIComponent(address)}&country=MW`
     );
     
     if (!response.ok) {
-      throw new Error('Geocoding request failed');
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.code === 'CERT_ERROR') {
+        throw new Error('Certificate validation failed. Please check your system clock.');
+      }
+      throw new Error(errorData.error || 'Geocoding request failed');
     }
 
     const data = await response.json();
     
-    if (data.length === 0) {
-      throw new Error('Address not found');
+    if (data.error) {
+      throw new Error(data.error);
     }
 
-    const result = data[0];
     return {
-      latitude: parseFloat(result.lat),
-      longitude: parseFloat(result.lon),
-      address: result.display_name,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.display_name || address,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Geocoding error:', error);
-    throw new Error('Failed to geocode address');
+    throw new Error(error.message || 'Failed to geocode address');
   }
 };
 

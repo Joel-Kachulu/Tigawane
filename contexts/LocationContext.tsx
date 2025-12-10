@@ -117,7 +117,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
             !(lat === 0 && lon === 0) &&
             lat >= -90 && lat <= 90 &&
             lon >= -180 && lon <= 180) {
-          const locationKey = `${lat.toFixed(6)}-${lon.toFixed(6)}-${selectedLocation.label || ''}`;
+          const locationKey = `${lat.toFixed(6)}-${lon.toFixed(6)}-${selectedLocation.address || ''}`;
           // Only persist if location actually changed
           if (locationKey !== lastPersistedLocationRef.current) {
             localStorage.setItem('tigawane_manual_location', JSON.stringify(selectedLocation))

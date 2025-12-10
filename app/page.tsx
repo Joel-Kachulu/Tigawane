@@ -62,6 +62,7 @@ function AppContent() {
   const [showCollaborationChat, setShowCollaborationChat] = useState(false)
   const [collaborationChatId, setCollaborationChatId] = useState("")
   const [collaborationChatTitle, setCollaborationChatTitle] = useState("")
+  const [selectedCollaborationId, setSelectedCollaborationId] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [myItemsRefreshTrigger, setMyItemsRefreshTrigger] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -111,6 +112,12 @@ function AppContent() {
     setShowCollaborationChat(true)
   }
 
+  const handleNavigateToCollaboration = (collaborationId: string) => {
+    console.log('🎯 handleNavigateToCollaboration called with ID:', collaborationId)
+    setSelectedCollaborationId(collaborationId)
+    setCurrentTab("collaborate")
+  }
+
   const handleMyItemUpdated = () => {
     setMyItemsRefreshTrigger((prev) => prev + 1)
   }
@@ -118,6 +125,34 @@ function AppContent() {
   const handleNavigateToMyItems = () => {
     setCurrentTab("my-items")
   }
+
+  // Listen for navigation to specific collaboration
+  useEffect(() => {
+    const handleNavigateToCollaboration = (event: Event) => {
+      const customEvent = event as CustomEvent<{ collaborationId: string }>
+      const collaborationId = customEvent.detail?.collaborationId
+      
+      if (collaborationId) {
+        console.log('📥 Received navigateToCollaboration event with ID:', collaborationId)
+        setSelectedCollaborationId(collaborationId)
+        setCurrentTab("collaborate")
+      }
+    }
+
+    const handleClearSelectedCollaboration = () => {
+      console.log('🧹 Clearing selected collaboration')
+      setSelectedCollaborationId(null)
+    }
+
+    // Use capture phase to ensure we catch the event
+    window.addEventListener('navigateToCollaboration', handleNavigateToCollaboration, true)
+    window.addEventListener('clearSelectedCollaboration', handleClearSelectedCollaboration)
+
+    return () => {
+      window.removeEventListener('navigateToCollaboration', handleNavigateToCollaboration, true)
+      window.removeEventListener('clearSelectedCollaboration', handleClearSelectedCollaboration)
+    }
+  }, [])
 
   // Close share dropdown when clicking outside
   useEffect(() => {
@@ -580,7 +615,10 @@ function AppContent() {
           </TabsContent>
 
           <TabsContent value="collaborate">
-            <CollaborationCenter onOpenCollaborationChat={handleOpenCollaborationChat} />
+            <CollaborationCenter 
+              onOpenCollaborationChat={handleOpenCollaborationChat}
+              selectedCollaborationId={selectedCollaborationId}
+            />
           </TabsContent>
 
           <TabsContent value="my-items">
@@ -729,6 +767,7 @@ function AppContent() {
         collaborationTitle={collaborationChatTitle}
         isOpen={showCollaborationChat}
         onClose={() => setShowCollaborationChat(false)}
+        onNavigateToFullPage={handleNavigateToCollaboration}
       />
     </div>
   )
