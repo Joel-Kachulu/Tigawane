@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { useClaimMutations } from "@/lib/hooks/useClaims"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -27,41 +27,22 @@ interface ClaimFoodModalProps {
 export default function ClaimFoodModal({ foodItem, isOpen, onClose, onClaimed }: ClaimFoodModalProps) {
   const { user } = useAuth()
   const [message, setMessage] = useState("")
-  const [loading, setLoading] = useState(false)
+  const { create, loading, error: claimError } = useClaimMutations()
 
   const handleClaim = async () => {
     if (!user || !foodItem) return
 
-    setLoading(true)
-
     try {
       console.log("Creating claim for item:", foodItem.id)
 
-      const { data, error } = await supabase
-        .from("claims")
-        .insert({
-          item_id: foodItem.id,
-          claimer_id: user.id,
-          owner_id: foodItem.user_id,
-          message: message || null,
-        })
-        .select()
+      await create({
+        item_id: foodItem.id,
+        claimer_id: user.id,
+        owner_id: foodItem.user_id,
+        message: message || null,
+      })
 
-      if (error) {
-        console.error("Error creating claim:", error)
-        throw error
-      }
-
-      console.log("Claim created successfully:", data)
-
-      // Update item status to 'requested' instead of 'claimed'
-      const { error: updateError } = await supabase.from("items").update({ status: "requested" }).eq("id", foodItem.id)
-
-      if (updateError) {
-        console.warn("Error updating item status:", updateError)
-      } else {
-        console.log("Item status updated to requested")
-      }
+      console.log("Claim created successfully")
 
       onClaimed()
       onClose()
@@ -81,8 +62,6 @@ export default function ClaimFoodModal({ foodItem, isOpen, onClose, onClaimed }:
     } catch (error: any) {
       console.error("Error claiming item:", error)
       alert(`Error sending request: ${error.message}`)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -132,6 +111,9 @@ export default function ClaimFoodModal({ foodItem, isOpen, onClose, onClaimed }:
             <Button onClick={handleClaim} disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700">
               {loading ? "Sending..." : "Send Request"}
             </Button>
+            {claimError && (
+              <p className="text-sm text-red-600 mt-2">{claimError.message}</p>
+            )}
           </div>
         </div>
       </DialogContent>

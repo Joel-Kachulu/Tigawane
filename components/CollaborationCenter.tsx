@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { useCollaborations, useCollaborationDetails, useCollaborationMutations } from "@/lib/hooks/useCollaborations"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,25 +39,7 @@ interface CollaborationCenterProps {
 
 export default function CollaborationCenter({ onOpenCollaborationChat, selectedCollaborationId }: CollaborationCenterProps) {
   const { user } = useAuth()
-  const [collaborations, setCollaborations] = useState<Collaboration[]>([])
-  const [selectedCollaboration, setSelectedCollaboration] = useState<Collaboration | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [isTableMissing, setIsTableMissing] = useState(false)
-  const [loadingDetails, setLoadingDetails] = useState(false)
-  const [participants, setParticipants] = useState<Array<{ id: string; user_id: string; full_name: string | null }>>([])
-  const [donationSummary, setDonationSummary] = useState<{
-    food_count: number
-    item_count: number
-    total_count: number
-    recent_donations: Array<{
-      id: string
-      title: string
-      item_type: string
-      user_name?: string
-      created_at: string
-    }>
-  } | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -64,182 +47,51 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
     target_date: "",
   })
 
-  useEffect(() => {
-    fetchCollaborations()
-  }, [])
+  // ✨ Use the new hooks instead of manual fetching
+  const { collaborations, loading, error, refetch } = useCollaborations(user?.id)
+  const { collaboration: selectedCollaboration, loading: loadingDetails, refetch: refetchDetails } = useCollaborationDetails(
+    selectedCollaborationId || null,
+    user?.id
+  )
+  const { create, join, leave, loading: mutationLoading } = useCollaborationMutations()
 
-  // Fetch details for selected collaboration
-  useEffect(() => {
-    if (selectedCollaborationId) {
-      console.log('🔄 CollaborationCenter: Fetching details for:', selectedCollaborationId)
-      fetchCollaborationDetails(selectedCollaborationId)
-    } else {
-      setSelectedCollaboration(null)
-      setParticipants([])
-      setDonationSummary(null)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCollaborationId])
+  // Check if table is missing (error handling)
+  const isTableMissing = error?.message === 'COLLABORATION_TABLE_MISSING' || 
+    (error && error.message.includes('relation "public.collaboration_requests" does not exist'))
 
-  const fetchCollaborations = async () => {
-    try {
-      // First, fetch collaboration requests
-      const { data: collaborationData, error: collaborationError } = await supabase
-        .from("collaboration_requests")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-
-      if (collaborationError) {
-        console.error("Error fetching collaborations:", collaborationError)
-        if (collaborationError.message.includes('relation "public.collaboration_requests" does not exist')) {
-          setIsTableMissing(true)
-        }
-        return
-      }
-
-      if (!collaborationData || collaborationData.length === 0) {
-        setCollaborations([])
-        setIsTableMissing(false)
-        return
-      }
-
-      // Get creator names separately
-      const creatorIds = [...new Set(collaborationData.map((collab) => collab.creator_id))]
-      const { data: profilesData } = await supabase.from("profiles").select("id, full_name").in("id", creatorIds)
-
-      // Create a map of creator IDs to names
-      const profilesMap = new Map()
-      if (profilesData) {
-        profilesData.forEach((profile) => {
-          profilesMap.set(profile.id, profile.full_name)
-        })
-      }
-
-      // Optimize database queries by batching them
-      const collaborationIds = collaborationData.map(collab => collab.id)
-      
-      // Get all participants for all collaborations in one query
-      const { data: allParticipants } = await supabase
-        .from("collaboration_participants")
-        .select("collaboration_id, user_id")
-        .in("collaboration_id", collaborationIds)
-
-      // Get all donation data for all collaborations in one query
-      const { data: allDonations } = await supabase
-        .from("items")
-        .select("collaboration_id, item_type")
-        .in("collaboration_id", collaborationIds)
-        .eq("status", "available")
-
-      // Process the data efficiently
-      const participantsByCollab = new Map()
-      const donationsByCollab = new Map()
-      
-      // Group participants by collaboration
-      if (allParticipants) {
-        allParticipants.forEach(p => {
-          if (!participantsByCollab.has(p.collaboration_id)) {
-            participantsByCollab.set(p.collaboration_id, [])
-          }
-          participantsByCollab.get(p.collaboration_id).push(p.user_id)
-        })
-      }
-      
-      // Group donations by collaboration and type
-      if (allDonations) {
-        allDonations.forEach(d => {
-          if (!donationsByCollab.has(d.collaboration_id)) {
-            donationsByCollab.set(d.collaboration_id, { food: 0, nonFood: 0, total: 0 })
-          }
-          const stats = donationsByCollab.get(d.collaboration_id)
-          stats.total++
-          if (d.item_type === "food") {
-            stats.food++
-          } else {
-            stats.nonFood++
-          }
-        })
-      }
-
-      // Build the final collaboration objects
-      const collaborationsWithDetails = collaborationData.map(collab => {
-        const participants = participantsByCollab.get(collab.id) || []
-        const donations = donationsByCollab.get(collab.id) || { food: 0, nonFood: 0, total: 0 }
-        const isParticipant = user ? participants.includes(user.id) : false
-
-        return {
-          ...collab,
-          creator_name: profilesMap.get(collab.creator_id) || "Anonymous",
-          participant_count: participants.length,
-          is_participant: isParticipant,
-          donation_preview: {
-            food_count: donations.food,
-            item_count: donations.nonFood,
-            total_count: donations.total
-          }
-        }
-      })
-
-      setCollaborations(collaborationsWithDetails)
-      setIsTableMissing(false)
-    } catch (error) {
-      console.error("Unexpected error fetching collaborations:", error)
-      setIsTableMissing(true)
-    }
-  }
-
-  const createCollaboration = async (e: React.FormEvent) => {
+  const handleCreateCollaboration = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || isTableMissing) return
 
-    setLoading(true)
-
     try {
-      const { data, error } = await supabase
-        .from("collaboration_requests")
-        .insert({
-          creator_id: user.id,
-          title: formData.title,
-          description: formData.description,
-          location: formData.location,
-          target_date: formData.target_date || null,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Auto-join the creator as a participant
-      await supabase.from("collaboration_participants").insert({
-        collaboration_id: data.id,
-        user_id: user.id,
+      // Service automatically joins the creator as a participant
+      await create({
+        creator_id: user.id,
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        target_date: formData.target_date || null,
       })
 
       setFormData({ title: "", description: "", location: "", target_date: "" })
       setShowCreateForm(false)
-      fetchCollaborations()
+      refetch()
       alert("Collaboration created successfully!")
     } catch (error: any) {
       console.error("Error creating collaboration:", error)
       alert(`Error creating collaboration: ${error.message}`)
-    } finally {
-      setLoading(false)
     }
   }
 
-  const joinCollaboration = async (collaborationId: string) => {
+  const handleJoinCollaboration = async (collaborationId: string) => {
     if (!user || isTableMissing) return
 
     try {
-      const { error } = await supabase.from("collaboration_participants").insert({
-        collaboration_id: collaborationId,
-        user_id: user.id,
-      })
-
-      if (error) throw error
-
-      fetchCollaborations()
+      await join(collaborationId, user.id)
+      refetch()
+      if (selectedCollaborationId === collaborationId) {
+        refetchDetails()
+      }
       alert("Successfully joined the collaboration!")
     } catch (error: any) {
       console.error("Error joining collaboration:", error)
@@ -247,21 +99,14 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
     }
   }
 
-  const leaveCollaboration = async (collaborationId: string) => {
+  const handleLeaveCollaboration = async (collaborationId: string) => {
     if (!user || isTableMissing) return
 
     try {
-      const { error } = await supabase
-        .from("collaboration_participants")
-        .delete()
-        .eq("collaboration_id", collaborationId)
-        .eq("user_id", user.id)
-
-      if (error) throw error
-
-      fetchCollaborations()
+      await leave(collaborationId, user.id)
+      refetch()
       if (selectedCollaborationId === collaborationId) {
-        fetchCollaborationDetails(collaborationId) // Refresh details
+        refetchDetails()
       }
       alert("Left the collaboration")
     } catch (error: any) {
@@ -270,95 +115,9 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
     }
   }
 
-  const fetchCollaborationDetails = async (collaborationId: string) => {
-    setLoadingDetails(true)
-    try {
-      // Fetch collaboration details
-      const { data: collabData, error: collabError } = await supabase
-        .from("collaboration_requests")
-        .select("*")
-        .eq("id", collaborationId)
-        .single()
-
-      if (collabError) throw collabError
-
-      // Fetch creator name
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", collabData.creator_id)
-        .single()
-
-      // Fetch participants
-      const { data: participantData } = await supabase
-        .from("collaboration_participants")
-        .select("id, user_id")
-        .eq("collaboration_id", collaborationId)
-
-      const userIds = participantData?.map(p => p.user_id) || []
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds)
-
-      const participantsWithNames = (participantData || []).map(p => {
-        const profile = profilesData?.find(pr => pr.id === p.user_id)
-        return {
-          ...p,
-          full_name: profile?.full_name || null
-        }
-      })
-
-      // Fetch donations
-      const { data: donationData } = await supabase
-        .from("items")
-        .select("id, title, item_type, user_id, created_at")
-        .eq("status", "available")
-        .eq("collaboration_id", collaborationId)
-        .order("created_at", { ascending: false })
-        .limit(20)
-
-      const donationUserIds = [...new Set(donationData?.map(item => item.user_id) || [])]
-      const { data: donationProfilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", donationUserIds)
-      const donationProfilesMap = new Map(donationProfilesData?.map(p => [p.id, p.full_name]) || [])
-
-      const foodCount = donationData?.filter(item => item.item_type === "food").length || 0
-      const itemCount = donationData?.filter(item => item.item_type === "non-food").length || 0
-
-      const recentDonations = (donationData || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        item_type: item.item_type,
-        user_name: donationProfilesMap.get(item.user_id) || "Anonymous",
-        created_at: item.created_at
-      }))
-
-      // Check if current user is a participant
-      const isParticipant = user ? userIds.includes(user.id) : false
-
-      setSelectedCollaboration({
-        ...collabData,
-        creator_name: profileData?.full_name || "Anonymous",
-        participant_count: participantsWithNames.length,
-        is_participant: isParticipant,
-      })
-      setParticipants(participantsWithNames)
-      setDonationSummary({
-        food_count: foodCount,
-        item_count: itemCount,
-        total_count: donationData?.length || 0,
-        recent_donations: recentDonations
-      })
-    } catch (error: any) {
-      console.error("Error fetching collaboration details:", error)
-      alert(`Error loading collaboration details: ${error.message}`)
-    } finally {
-      setLoadingDetails(false)
-    }
-  }
+  // Extract participants and donation summary from selectedCollaboration
+  const participants = selectedCollaboration?.participants || []
+  const donationSummary = selectedCollaboration?.donation_summary || null
 
   // Show setup message if table is missing
   if (isTableMissing) {
@@ -382,7 +141,7 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
               <br />
               <code>scripts/setup-complete-database.sql</code>
             </div>
-            <Button onClick={fetchCollaborations} variant="outline">
+            <Button onClick={refetch} variant="outline">
               Check Again
             </Button>
           </CardContent>
@@ -409,7 +168,7 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
             <DialogHeader>
               <DialogTitle>Start a New Collaboration</DialogTitle>
             </DialogHeader>
-            <form onSubmit={createCollaboration} className="space-y-4">
+            <form onSubmit={handleCreateCollaboration} className="space-y-4">
               <div>
                 <Label htmlFor="title">Title *</Label>
                 <Input
@@ -454,8 +213,8 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
                 <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)} className="flex-1">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700">
-                  {loading ? "Creating..." : "Create"}
+                <Button type="submit" disabled={mutationLoading} className="flex-1 bg-green-600 hover:bg-green-700">
+                  {mutationLoading ? "Creating..." : "Create"}
                 </Button>
               </div>
             </form>
@@ -552,13 +311,13 @@ export default function CollaborationCenter({ onOpenCollaborationChat, selectedC
                       <MessageCircle className="h-4 w-4 mr-1" />
                       Chat
                     </Button>
-                    <Button onClick={() => leaveCollaboration(collab.id)} variant="outline" size="sm">
+                    <Button onClick={() => handleLeaveCollaboration(collab.id)} variant="outline" size="sm">
                       Leave
                     </Button>
                   </>
                 ) : (
                   <Button
-                    onClick={() => joinCollaboration(collab.id)}
+                    onClick={() => handleJoinCollaboration(collab.id)}
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     size="sm"
                   >

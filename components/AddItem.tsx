@@ -5,55 +5,18 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { geocodeAddress } from "@/lib/locationService";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import {
-  Camera,
-  Package,
-  MapPin,
-  Heart,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  Sparkles,
-  Users,
-  Globe,
-} from "lucide-react";
-import Image from "next/image";
+import AddItemHeader from "@/components/forms/AddItemHeader";
+import PhotoStep from "@/components/forms/PhotoStep";
+import DetailsStep from "@/components/forms/DetailsStep";
+import LocationStep from "@/components/forms/LocationStep";
+import ImpactStep from "@/components/forms/ImpactStep";
+import SuccessAnimation from "@/components/forms/SuccessAnimation";
+import AddItemNavigation from "@/components/forms/AddItemNavigation";
 
 interface AddItemProps {
   itemType: "food" | "non-food";
   onItemAdded: () => void;
 }
-
-const STEPS = [
-  { id: 1, title: "Photo", icon: Camera, description: "Show your item" },
-  {
-    id: 2,
-    title: "Details",
-    icon: Package,
-    description: "What are you sharing?",
-  },
-  { id: 3, title: "Location", icon: MapPin, description: "Where to collect" },
-  { id: 4, title: "Impact", icon: Heart, description: "Choose destination" },
-];
 
 export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
   const { user } = useAuth();
@@ -189,14 +152,14 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
       case 1:
         return true; // Image is optional but encouraged
       case 2:
-        return (
+        return !!(
           formData.title.trim() &&
           formData.category &&
           formData.quantity.trim() &&
           (itemType === "food" || formData.condition)
         );
       case 3:
-        return formData.pickup_label.trim();
+        return !!formData.pickup_label.trim();
       case 4:
         return true; // Impact step has default values
       default:
@@ -441,71 +404,12 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
   // Success animation overlay
   if (showSuccess) {
-    return (
-      <div className="fixed inset-0 bg-green-50 flex items-center justify-center z-50">
-        <div className="text-center space-y-6 animate-bounce">
-          <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto">
-            <Sparkles className="w-12 h-12 text-white animate-pulse" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-3xl font-bold text-green-700">Amazing! 🎉</h2>
-            <p className="text-lg text-green-600">
-              You've helped someone in your neighborhood!
-            </p>
-            <p className="text-sm text-green-500">
-              {itemType === "food"
-                ? "Food rescued from waste"
-                : "Item given new life"}{" "}
-              ✨
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <SuccessAnimation itemType={itemType} />;
   }
 
   return (
     <div className="max-w-2xl mx-auto bg-white min-h-screen">
-      {/* Header with Progress */}
-      <div className="sticky top-0 bg-white border-b border-gray-100 p-4 z-10">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-900">
-            Share {itemType === "food" ? "Food" : "Items"}
-          </h1>
-          <div className="text-sm text-gray-500">{currentStep}/4</div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="flex space-x-2">
-          {STEPS.map((step, index) => (
-            <div
-              key={step.id}
-              className={`flex-1 h-2 rounded-full transition-all duration-300 ${
-                currentStep > step.id
-                  ? "bg-green-500"
-                  : currentStep === step.id
-                    ? "bg-green-300"
-                    : "bg-gray-200"
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Current Step Info */}
-        <div className="mt-4 text-center">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            {React.createElement(STEPS[currentStep - 1].icon, {
-              className: "w-5 h-5 text-green-600",
-            })}
-            <h2 className="text-lg font-semibold text-gray-900">
-              {STEPS[currentStep - 1].title}
-            </h2>
-          </div>
-          <p className="text-sm text-gray-600">
-            {STEPS[currentStep - 1].description}
-          </p>
-        </div>
-      </div>
+      <AddItemHeader itemType={itemType} currentStep={currentStep} />
 
       {/* Form Content */}
       <div className="p-4">
@@ -517,407 +421,54 @@ export default function AddItem({ itemType, onItemAdded }: AddItemProps) {
 
         {/* Step 1: Photo */}
         {currentStep === 1 && (
-          <div className="space-y-6 py-6">
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">Add a photo</h3>
-              <p className="text-gray-600 text-sm mb-6">
-                A good photo helps people connect with your{" "}
-                {itemType === "food" ? "food" : "item"}
-              </p>
-            </div>
-
-            <div className="relative">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                id="image-upload"
-              />
-              <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                  imagePreview
-                    ? "border-green-300 bg-green-50"
-                    : "border-gray-300 bg-gray-50"
-                }`}
-              >
-                {imagePreview ? (
-                  <div className="space-y-4">
-                    <Image
-                      src={imagePreview}
-                      alt="Preview"
-                      width={200}
-                      height={200}
-                      className="mx-auto rounded-lg object-cover"
-                    />
-                    <p className="text-green-600 font-medium">Perfect! 📸</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <Camera className="w-12 h-12 text-gray-400 mx-auto" />
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Tap to add photo
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Optional but recommended
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <PhotoStep
+            itemType={itemType}
+            imagePreview={imagePreview}
+            onImageChange={handleImageChange}
+          />
         )}
 
         {/* Step 2: Details */}
         {currentStep === 2 && (
-          <div className="space-y-6 py-6">
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">
-                Tell us about your {itemType}
-              </h3>
-              <p className="text-gray-600 text-sm mb-6">
-                Help others understand what you're sharing
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title" className="text-base font-medium">
-                  What are you sharing? *
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  placeholder={
-                    itemType === "food"
-                      ? "e.g., Fresh tomatoes"
-                      : "e.g., Men's running shoes"
-                  }
-                  className="mt-2 text-base h-12"
-                />
-              </div>
-
-              <div>
-                <Label className="text-base font-medium">Category *</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  {getCategories().map((cat) => (
-                    <button
-                      key={cat.value}
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, category: cat.value })
-                      }
-                      className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        formData.category === cat.value
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 bg-white"
-                      }`}
-                    >
-                      <div className="text-2xl mb-1">{cat.icon}</div>
-                      <div className="text-sm font-medium">{cat.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="quantity" className="text-base font-medium">
-                  Quantity *
-                </Label>
-                <Input
-                  id="quantity"
-                  value={formData.quantity}
-                  onChange={(e) =>
-                    setFormData({ ...formData, quantity: e.target.value })
-                  }
-                  placeholder={
-                    itemType === "food"
-                      ? "e.g., 2 kg, 5 pieces"
-                      : "e.g., 1 pair, 3 items"
-                  }
-                  className="mt-2 text-base h-12"
-                />
-              </div>
-
-              {itemType === "non-food" && (
-                <div>
-                  <Label className="text-base font-medium">Condition *</Label>
-                  <div className="space-y-2 mt-2">
-                    {conditions.map((condition) => (
-                      <button
-                        key={condition.value}
-                        type="button"
-                        onClick={() =>
-                          setFormData({
-                            ...formData,
-                            condition: condition.value,
-                          })
-                        }
-                        className={`w-full p-3 rounded-lg border text-left transition-all ${
-                          formData.condition === condition.value
-                            ? "border-green-500 bg-green-50"
-                            : "border-gray-200 bg-white"
-                        }`}
-                      >
-                        <div className="font-medium">{condition.label}</div>
-                        <div className="text-sm text-gray-600">
-                          {condition.description}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {itemType === "food" && (
-                <div>
-                  <Label
-                    htmlFor="expiry_date"
-                    className="text-base font-medium"
-                  >
-                    Best before (optional)
-                  </Label>
-                  <Input
-                    id="expiry_date"
-                    type="date"
-                    value={formData.expiry_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, expiry_date: e.target.value })
-                    }
-                    className="mt-2 text-base h-12"
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label htmlFor="description" className="text-base font-medium">
-                  Additional details (optional)
-                </Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Any special notes..."
-                  rows={3}
-                  className="mt-2 text-base"
-                />
-              </div>
-            </div>
-          </div>
+          <DetailsStep
+            itemType={itemType}
+            formData={formData}
+            onFormDataChange={(data) => setFormData({ ...formData, ...data })}
+            getCategories={getCategories}
+            conditions={conditions}
+          />
         )}
 
         {/* Step 3: Location */}
         {currentStep === 3 && (
-          <div className="space-y-6 py-6">
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">
-                Where can people collect?
-              </h3>
-              <p className="text-gray-600 text-sm mb-6">
-                Help people find you easily
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {selectedLocation && selectedLocation.latitude && selectedLocation.longitude && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-sm text-green-700">
-                    <MapPin className="h-4 w-4" />
-                    <span className="font-medium">GPS location available - will be used if geocoding fails</span>
-                  </div>
-                </div>
-              )}
-              <div>
-                <Label htmlFor="pickup_label" className="text-base font-medium">Pickup Location *</Label>
-                <Input
-                  id="pickup_label"
-                  value={formData.pickup_label}
-                  onChange={(e) => setFormData({ ...formData, pickup_label: e.target.value })}
-                  placeholder="e.g., COM, Blantyre or Area 25, Lilongwe"
-                  className="mt-2 text-base h-12"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Enter location in format: <strong>Area/Location, District</strong> (e.g., "COM, Blantyre" or "Area 25, Lilongwe"). 
-                  The app will find coordinates automatically. If that fails, your current GPS location will be used.
-                </p>
-              </div>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_anonymous"
-                    checked={formData.is_anonymous}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, is_anonymous: checked })
-                    }
-                  />
-                  <Label htmlFor="is_anonymous" className="text-base">
-                    Share anonymously
-                  </Label>
-                </div>
-                <p className="text-sm text-blue-600 mt-2">
-                  Your name won't be shown to others
-                </p>
-              </div>
-            </div>
-          </div>
+          <LocationStep
+            formData={formData}
+            onFormDataChange={(data) => setFormData({ ...formData, ...data })}
+            selectedLocation={selectedLocation}
+          />
         )}
 
         {/* Step 4: Impact */}
         {currentStep === 4 && (
-          <div className="space-y-6 py-6">
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">Choose your impact</h3>
-              <p className="text-gray-600 text-sm mb-6">
-                Who would you like to help?
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setFormData({ ...formData, collaboration_id: null })
-                }
-                className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                  !formData.collaboration_id
-                    ? "border-green-500 bg-green-50"
-                    : "border-gray-200 bg-white"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Globe className="w-6 h-6 text-blue-500" />
-                  <div>
-                    <div className="font-medium">Public Donation</div>
-                    <div className="text-sm text-gray-600">
-                      Available to everyone in your area
-                    </div>
-                  </div>
-                </div>
-              </button>
-
-              {collaborations.map((collaboration) => (
-                <button
-                  key={collaboration.id}
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      collaboration_id: collaboration.id,
-                    })
-                  }
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    formData.collaboration_id === collaboration.id
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <Users className="w-6 h-6 text-purple-500" />
-                    <div>
-                      <div className="font-medium">{collaboration.title}</div>
-                      <div className="text-sm text-gray-600">
-                        Specific cause or community project
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Preview Card */}
-            <div className="mt-8">
-              <h4 className="font-medium mb-3">Preview of your listing:</h4>
-              <Card className="border-2 border-green-200">
-                <CardContent className="p-4">
-                  <div className="flex space-x-3">
-                    {imagePreview ? (
-                      <Image
-                        src={imagePreview}
-                        alt="Preview"
-                        width={60}
-                        height={60}
-                        className="rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-15 h-15 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <span className="text-2xl">
-                          {getCategoryIcon(formData.category)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h5 className="font-medium">
-                        {formData.title || "Your item title"}
-                      </h5>
-                      <p className="text-sm text-gray-600">
-                        {formData.quantity || "Quantity"}
-                      </p>
-                      <p className="text-sm text-green-600">
-                        📍 {formData.pickup_label || "Your area"}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <ImpactStep
+            formData={formData}
+            onFormDataChange={(data) => setFormData({ ...formData, ...data })}
+            collaborations={collaborations}
+            imagePreview={imagePreview}
+            getCategoryIcon={getCategoryIcon}
+          />
         )}
       </div>
 
       {/* Navigation Buttons */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
-        <div className="flex space-x-3">
-          {currentStep > 1 && (
-            <Button
-              variant="outline"
-              onClick={handlePrevious}
-              className="flex-1 h-12 text-base"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          )}
-
-          {currentStep < 4 ? (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceedToNext()}
-              className={`h-12 text-base font-medium ${
-                currentStep === 1 ? "w-full" : "flex-1"
-              } bg-green-600 hover:bg-green-700 disabled:opacity-50`}
-            >
-              Continue
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={loading || !canProceedToNext()}
-              className="flex-1 h-12 text-base font-medium bg-green-600 hover:bg-green-700 disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Sharing...</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Heart className="w-4 h-4" />
-                  <span>Share with Community</span>
-                </div>
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
+      <AddItemNavigation
+        currentStep={currentStep}
+        canProceed={canProceedToNext()}
+        loading={loading}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }

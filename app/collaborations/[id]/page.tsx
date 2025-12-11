@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { useCollaborationDetails, useCollaborationMutations } from "@/lib/hooks/useCollaborations"
 import ItemList from "@/components/ItemList"
 import CollaborationChatModal from "@/components/CollaborationChatModal"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,108 +54,36 @@ export default function CollaborationPage() {
   const [collaboration, setCollaboration] = useState<Collaboration | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [donationSummary, setDonationSummary] = useState<DonationSummary | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showChatModal, setShowChatModal] = useState(false)
 
+  // ✨ Use the new hooks
+  const { collaboration: collaborationDetails, loading, refetch: refetchDetails } = useCollaborationDetails(
+    collaborationId || null,
+    user?.id
+  )
+  const { join, leave } = useCollaborationMutations()
+
+  // Update local state when collaboration details are fetched
   useEffect(() => {
-    if (!collaborationId) return
-
-    const fetchCollaboration = async () => {
-      setLoading(true)
-      try {
-        // Fetch collaboration details
-        const { data: collabData, error: collabError } = await supabase
-          .from("collaboration_requests")
-          .select("*")
-          .eq("id", collaborationId)
-          .single()
-
-        if (collabError) throw collabError
-
-        // Fetch creator name
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", collabData.creator_id)
-          .single()
-
-        // Fetch participants with names
-        const { data: participantData } = await supabase
-          .from("collaboration_participants")
-          .select("id, user_id")
-          .eq("collaboration_id", collaborationId)
-
-        const userIds = participantData?.map(p => p.user_id) || []
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds)
-
-        const participantsWithNames = (participantData || []).map(p => {
-          const profile = profilesData?.find(pr => pr.id === p.user_id)
-          return {
-            ...p,
-            full_name: profile?.full_name || null
-          }
-        })
-
-        // Check if current user is a participant
-        let isParticipant = false
-        if (user && participantData) {
-          isParticipant = participantData.some((p) => p.user_id === user.id)
-        }
-
-        // Fetch donations summary
-        const { data: donationData } = await supabase
-          .from("items")
-          .select("id, title, item_type, user_id, created_at")
-          .eq("status", "available")
-          .eq("collaboration_id", collaborationId)
-          .order("created_at", { ascending: false })
-          .limit(20)
-
-        const donationUserIds = [...new Set(donationData?.map(item => item.user_id) || [])]
-        const { data: donationProfilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", donationUserIds)
-        const donationProfilesMap = new Map(donationProfilesData?.map(p => [p.id, p.full_name]) || [])
-
-        const foodCount = donationData?.filter(item => item.item_type === "food").length || 0
-        const itemCount = donationData?.filter(item => item.item_type === "non-food").length || 0
-
-        const recentDonations = (donationData || []).map(item => ({
-          id: item.id,
-          title: item.title,
-          item_type: item.item_type,
-          user_name: donationProfilesMap.get(item.user_id) || "Anonymous",
-          created_at: item.created_at
-        }))
-
-        setCollaboration({
-          ...collabData,
-          creator_name: profileData?.full_name || "Anonymous",
-          participant_count: participantsWithNames.length,
-          is_participant: isParticipant,
-        })
-        setParticipants(participantsWithNames)
-        setDonationSummary({
-          food_count: foodCount,
-          item_count: itemCount,
-          total_count: donationData?.length || 0,
-          recent_donations: recentDonations
-        })
-      } catch (error: any) {
-        console.error("Error fetching collaboration:", error)
-        setError("Failed to load collaboration details")
-      } finally {
-        setLoading(false)
-      }
+    if (collaborationDetails) {
+      setCollaboration({
+        id: collaborationDetails.id,
+        title: collaborationDetails.title,
+        description: collaborationDetails.description,
+        location: collaborationDetails.location,
+        target_date: collaborationDetails.target_date,
+        status: collaborationDetails.status,
+        created_at: collaborationDetails.created_at,
+        creator_id: collaborationDetails.creator_id,
+        creator_name: collaborationDetails.creator_name,
+        participant_count: collaborationDetails.participant_count,
+        is_participant: collaborationDetails.is_participant,
+      })
+      setParticipants(collaborationDetails.participants)
+      setDonationSummary(collaborationDetails.donation_summary)
     }
-
-    fetchCollaboration()
-  }, [collaborationId, user])
+  }, [collaborationDetails])
 
   if (loading) {
     return (
@@ -187,50 +115,17 @@ export default function CollaborationPage() {
     )
   }
 
-  const joinCollaboration = async () => {
+  const handleJoinCollaboration = async () => {
     if (!user) {
       alert("Please sign in to join collaborations")
       return
     }
 
+    if (!collaborationId) return
+
     try {
-      const { error } = await supabase.from("collaboration_participants").insert({
-        collaboration_id: collaborationId,
-        user_id: user.id,
-      })
-
-      if (error) throw error
-
-      // Refresh collaboration data
-      const fetchCollaboration = async () => {
-        const { data: participantData } = await supabase
-          .from("collaboration_participants")
-          .select("id, user_id")
-          .eq("collaboration_id", collaborationId)
-
-        const userIds = participantData?.map(p => p.user_id) || []
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds)
-
-        const participantsWithNames = (participantData || []).map(p => {
-          const profile = profilesData?.find(pr => pr.id === p.user_id)
-          return {
-            ...p,
-            full_name: profile?.full_name || null
-          }
-        })
-
-        setCollaboration(prev => prev ? {
-          ...prev,
-          participant_count: participantsWithNames.length,
-          is_participant: true
-        } : null)
-        setParticipants(participantsWithNames)
-      }
-
-      fetchCollaboration()
+      await join(collaborationId, user.id)
+      refetchDetails()
       alert("Successfully joined the collaboration!")
     } catch (error: any) {
       console.error("Error joining collaboration:", error)
@@ -238,44 +133,12 @@ export default function CollaborationPage() {
     }
   }
 
-  const leaveCollaboration = async () => {
-    if (!user) return
+  const handleLeaveCollaboration = async () => {
+    if (!user || !collaborationId) return
 
     try {
-      const { error } = await supabase
-        .from("collaboration_participants")
-        .delete()
-        .eq("collaboration_id", collaborationId)
-        .eq("user_id", user.id)
-
-      if (error) throw error
-
-      // Refresh collaboration data
-      const { data: participantData } = await supabase
-        .from("collaboration_participants")
-        .select("id, user_id")
-        .eq("collaboration_id", collaborationId)
-
-      const userIds = participantData?.map(p => p.user_id) || []
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds)
-
-      const participantsWithNames = (participantData || []).map(p => {
-        const profile = profilesData?.find(pr => pr.id === p.user_id)
-        return {
-          ...p,
-          full_name: profile?.full_name || null
-        }
-      })
-
-      setCollaboration(prev => prev ? {
-        ...prev,
-        participant_count: participantsWithNames.length,
-        is_participant: false
-      } : null)
-      setParticipants(participantsWithNames)
+      await leave(collaborationId, user.id)
+      refetchDetails()
       alert("Left the collaboration")
     } catch (error: any) {
       console.error("Error leaving collaboration:", error)
@@ -449,7 +312,7 @@ export default function CollaborationPage() {
                 Open Chat
               </Button>
               <Button 
-                onClick={leaveCollaboration} 
+                onClick={handleLeaveCollaboration} 
                 className="border-gray-300"
               >
                 Leave
@@ -457,7 +320,7 @@ export default function CollaborationPage() {
             </>
           ) : (
             <Button
-              onClick={joinCollaboration}
+              onClick={handleJoinCollaboration}
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
               Join Collaboration

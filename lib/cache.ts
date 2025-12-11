@@ -128,6 +128,8 @@ export const profileCache = new Cache(200); // Cache up to 200 profiles
 export const statsCache = new Cache(50); // Cache stats
 export const itemsCache = new Cache(100); // Cache item queries
 export const nearbyItemsCache = new Cache(20); // Cache nearby items queries
+export const collaborationsCache = new Cache(50); // Cache collaboration queries
+export const claimsCache = new Cache(100); // Cache claim queries
 
 // Cache TTL constants (in milliseconds)
 export const CACHE_TTL = {
@@ -136,6 +138,9 @@ export const CACHE_TTL = {
   ITEMS: 2 * 60 * 1000, // 2 minutes - items can change frequently
   NEARBY_ITEMS: 1 * 60 * 1000, // 1 minute - nearby items change often
   STORIES: 10 * 60 * 1000, // 10 minutes - stories don't change often
+  COLLABORATIONS: 3 * 60 * 1000, // 3 minutes - collaborations update moderately
+  COLLABORATION_DETAILS: 2 * 60 * 1000, // 2 minutes - details change more often
+  CLAIMS: 1 * 60 * 1000, // 1 minute - claims change frequently
 } as const;
 
 /**
@@ -147,5 +152,29 @@ export function generateCacheKey(prefix: string, params: Record<string, any>): s
     .map((key) => `${key}:${JSON.stringify(params[key])}`)
     .join('|');
   return `${prefix}:${sortedParams}`;
+}
+
+/**
+ * Invalidate cache entries matching a pattern
+ * @param pattern - Pattern to match (e.g., 'items', 'profile:123', 'collaborations')
+ */
+export function invalidateCache(pattern: string): void {
+  const caches = [
+    profileCache,
+    statsCache,
+    itemsCache,
+    nearbyItemsCache,
+    collaborationsCache,
+    claimsCache,
+  ];
+  
+  caches.forEach(cache => {
+    const stats = cache.getStats();
+    stats.keys.forEach(key => {
+      if (key.startsWith(pattern)) {
+        cache.delete(key);
+      }
+    });
+  });
 }
 
